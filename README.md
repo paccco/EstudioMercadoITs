@@ -63,3 +63,19 @@ Para garantizar una base de datos robusta sin intervención manual, el sistema s
 ├── Join.py                 # Script de consolidación mensual (Producción)
 ├── Tratamiento.ipynb       # Notebook de limpieza y procesamiento
 └── README.md               # Documentación
+```
+## ⚙️ Automatización (Crontab Configuration)
+
+Para garantizar la autonomía del proyecto en la **Raspberry Pi Zero 2 W**, se han programado dos tareas principales. Estas incluyen flags de optimización de memoria para evitar colapsos en los 512MB de RAM del dispositivo.
+
+### 1. Extracción Diaria (Scraping)
+Se ejecuta todas las madrugadas para capturar las nuevas ofertas publicadas en las últimas 24 horas.
+
+```bash
+00 05 * * * cd /home/pacc/Desktop/scrapping && MALLOC_TRIM_THRESHOLD_=65536 PYTHONMALLOC=malloc ./env/bin/python3 -O Scrapping.py >> logs/cron_diario_$(date +\%d-\%m-\%Y).log 2>&1
+```
+
+### 2. Consolidación mensual de datasets ejecutada cada día 1 a la 01:00 AM, con gestión optimizada de memoria RAM para hardware limitado y registro de logs fechados(Join)
+```bash
+00 01 1 * * cd /home/pacc/Desktop/scrapping && MALLOC_TRIM_THRESHOLD_=65536 PYTHONMALLOC=malloc ./env/bin/python3 -O Join.py >> logs/cron_mensual_$(date +\%m-\%Y).log 2>&1
+```
