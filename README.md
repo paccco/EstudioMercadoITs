@@ -6,7 +6,7 @@
 ![LinkedIn](https://img.shields.io/badge/linkedin-%230077B5.svg?style=for-the-badge&logo=linkedin&logoColor=white)
 ![Charts](https://img.shields.io/badge/Matplotlib-%23ffffff.svg?style=for-the-badge&logo=Matplotlib&logoColor=black)
 
-Este proyecto automatiza la extracción, limpieza y análisis de ofertas de empleo en el sector tecnológico para **Málaga** y **Granada**, analizando tanto el mercado local como el nacional en remoto.
+Este proyecto automatiza la extracción de ofertas de empleo en el sector tecnológico para **Málaga** y **Granada**, analizando tanto el mercado local como el nacional en remoto.
 
 El objetivo principal es identificar el **stack tecnológico real** que las empresas demandan para perfiles **Junior (Entry Level)** en 2026.
 
