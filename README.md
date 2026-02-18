@@ -75,7 +75,7 @@ Se ejecuta todas las madrugadas para capturar las nuevas ofertas publicadas en l
 00 05 * * * cd /home/pacc/Desktop/scrapping && MALLOC_TRIM_THRESHOLD_=65536 PYTHONMALLOC=malloc ./env/bin/python3 -O Scrapping.py >> logs/cron_diario_$(date +\%d-\%m-\%Y).log 2>&1
 ```
 
-### 2. Consolidación mensual de datasets ejecutada cada día 1 a la 01:00 AM, con gestión optimizada de memoria RAM para hardware limitado y registro de logs fechados(Join)
+### 2. Consolidación mensual de datasets (Join)
 ```bash
 00 01 1 * * cd /home/pacc/Desktop/scrapping && MALLOC_TRIM_THRESHOLD_=65536 PYTHONMALLOC=malloc ./env/bin/python3 -O Join.py >> logs/cron_mensual_$(date +\%m-\%Y).log 2>&1
 ```
