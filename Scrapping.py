@@ -2,12 +2,12 @@
 # coding: utf-8
 
 import pandas as pd
-from jobspy import scrape_jobs
+from jobspy import scrape_jobs # <--- Scrappeo de ofertas de empleo
 import time
 import random
-import os
-import logging
-import gc  # <--- Importante para liberar RAM
+import os # <--- Para manejo de archivos y rutas
+import logging # <--- Para manejo de logs
+import gc  # <--- Para liberar RAM
 from datetime import datetime
 
 # --- CONFIGURACIÓN DE RUTAS Y LOGS ---
@@ -37,10 +37,10 @@ ruta_final = os.path.join(ruta_carpeta, f"ofertas_it_{timestamp_archivo}.csv")
 sites = ["linkedin", "indeed", "glassdoor"]
 locations = ["Málaga", "Granada", "Sevilla", "Madrid", "Barcelona"]
 search_terms = ["Data Engineer", "Data Analyst", "Python Developer", "Backend Engineer" ,"Software Developer", "IA Engineer"]
-random_pet = [7, 12]
+random_pet = [7, 12] # Rango de espera aleatoria entre búsquedas (en segundos) para evitar bloqueos
 
 def save_to_csv(df, path):
-    """Guarda el dataframe en modo append y libera memoria"""
+    # Guardamos el dataframe en modo append y libera memoria
     if not df.empty:
         # Escribir cabecera solo si el archivo no existe
         file_exists = os.path.isfile(path)
@@ -116,7 +116,7 @@ for term in search_terms:
 
     time.sleep(random.uniform(random_pet[0], random_pet[1]))
 
-# --- LIMPIEZA FINAL DE DUPLICADOS (Opcional, sobre el archivo ya guardado) ---
+# --- LIMPIEZA FINAL DE DUPLICADOS (Sobre el archivo ya guardado) ---
 if os.path.exists(ruta_final):
     logging.info("Iniciando limpieza de duplicados en el archivo final...")
     df_final = pd.read_csv(ruta_final)

@@ -41,7 +41,7 @@ ruta_final = os.path.join(carpeta_mes, f"dataset_{mes_a_procesar}.csv")
 
 logging.info(f"Iniciando consolidación de {len(archivos)} archivos de {len(carpetas_diarias)} días...")
 
-# Paso A: Unir archivos en un temporal
+# Paso 1: Unir archivos en un temporal
 for i, archivo in enumerate(archivos):
     try:
         temp_df = pd.read_csv(archivo, engine='c', low_memory=True)
@@ -51,7 +51,7 @@ for i, archivo in enumerate(archivos):
     except Exception as e:
         logging.error(f"Error procesando {archivo}: {e}")
 
-# Paso B: Limpieza y creación de la carpeta final
+# Paso 2: Limpieza y creación de la carpeta final
 exito_guardado = False
 if os.path.exists(ruta_temporal):
     logging.info("Limpiando duplicados y generando archivo maestro...")
