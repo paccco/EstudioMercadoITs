@@ -7,7 +7,14 @@ import os
 import logging
 import gc
 import shutil  # Para borrar las carpetas diarias
+import argparse  # Para argumentos de línea de comandos
 from datetime import datetime, timedelta
+
+# --- 0. PARSER DE ARGUMENTOS ---
+parser = argparse.ArgumentParser(description='Script de consolidación mensual de datos de LinkedIn')
+parser.add_argument('--manual', action='store_true', 
+                    help='Ejecuta el script en modo manual (no borra las carpetas diarias)')
+args = parser.parse_args()
 
 # --- 1. CONFIGURACIÓN DE LOGS ---
 log_dir = 'logs'
@@ -79,14 +86,17 @@ else:
 
 # --- 4. BORRADO DE CARPETAS DIARIAS (LIMPIEZA DE SCRAPS) ---
 if exito_guardado:
-    logging.info(f"Iniciando borrado de carpetas diarias de {mes_a_procesar}...")
-    for carpeta in carpetas_diarias:
-        try:
-            shutil.rmtree(carpeta) # Borra la carpeta y todo su contenido
-            logging.info(f"Eliminada: {carpeta}")
-        except Exception as e:
-            logging.error(f"No se pudo borrar {carpeta}: {e}")
-    logging.info("Limpieza de scraps completada.")
+    if args.manual:
+        logging.info("MODO MANUAL: No se borrarán las carpetas diarias. Los informes se mantienen en scraps/")
+    else:
+        logging.info(f"Iniciando borrado de carpetas diarias de {mes_a_procesar}...")
+        for carpeta in carpetas_diarias:
+            try:
+                shutil.rmtree(carpeta) # Borra la carpeta y todo su contenido
+                logging.info(f"Eliminada: {carpeta}")
+            except Exception as e:
+                logging.error(f"No se pudo borrar {carpeta}: {e}")
+        logging.info("Limpieza de scraps completada.")
 else:
     logging.warning("No se borraron las carpetas diarias porque el archivo maestro no se generó.")
 
