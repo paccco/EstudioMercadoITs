@@ -12,8 +12,8 @@ from datetime import datetime, timedelta
 
 # --- 0. PARSER DE ARGUMENTOS ---
 parser = argparse.ArgumentParser(description='Script de consolidación mensual de datos de LinkedIn')
-parser.add_argument('--manual', action='store_true', 
-                    help='Ejecuta el script en modo manual (no borra las carpetas diarias)')
+parser.add_argument('--auto', action='store_true', 
+                    help='Ejecuta el script en modo automático (borra las carpetas diarias)')
 args = parser.parse_args()
 
 # --- 1. CONFIGURACIÓN DE LOGS ---
@@ -29,9 +29,15 @@ logging.basicConfig(
     handlers=[logging.FileHandler(log_file, encoding='utf-8'), logging.StreamHandler()]
 )
 
-# --- 2. DETERMINAR EL MES ANTERIOR ---
+# --- 2. DETERMINAR EL MES A PROCESAR ---
 hoy = datetime.now()
-mes_a_procesar = (hoy.replace(day=1) - timedelta(days=1)).strftime("%m-%Y")
+if args.auto:
+    # En modo automático procesamos el mes anterior
+    mes_a_procesar = (hoy.replace(day=1) - timedelta(days=1)).strftime("%m-%Y")
+else:
+    # En modo manual (por defecto) procesamos el mes actual
+    mes_a_procesar = hoy.strftime("%m-%Y")
+    logging.info("MODO MANUAL: Procesando el MES ACTUAL")
 
 # --- 3. PROCESAMIENTO INCREMENTAL ---
 # Buscamos las carpetas diarias: scraps/DD-MM-YYYY/
@@ -44,7 +50,14 @@ if not os.path.exists(data_dir): os.makedirs(data_dir)
 
 carpeta_mes = os.path.join(data_dir, f"resultado_{mes_a_procesar}")
 ruta_temporal = os.path.join(data_dir, f"temp_{mes_a_procesar}.csv")
-ruta_final = os.path.join(carpeta_mes, f"dataset_{mes_a_procesar}.csv")
+
+# Determinar el sufijo del archivo: "_F" si es día 1 y es ejecución automática
+sufijo = ""
+if args.auto:
+    sufijo = "_F"
+    logging.info("DÍA 1 DEL MES: Se añadirá sufijo '_F' al archivo final")
+
+ruta_final = os.path.join(carpeta_mes, f"dataset_{mes_a_procesar}{sufijo}.csv")
 
 logging.info(f"Iniciando consolidación de {len(archivos)} archivos de {len(carpetas_diarias)} días...")
 
@@ -86,7 +99,7 @@ else:
 
 # --- 4. BORRADO DE CARPETAS DIARIAS (LIMPIEZA DE SCRAPS) ---
 if exito_guardado:
-    if args.manual:
+    if not args.auto:
         logging.info("MODO MANUAL: No se borrarán las carpetas diarias. Los informes se mantienen en scraps/")
     else:
         logging.info(f"Iniciando borrado de carpetas diarias de {mes_a_procesar}...")
