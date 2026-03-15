@@ -6,23 +6,13 @@ from jobspy import scrape_jobs # <--- Scrappeo de ofertas de empleo
 import time
 import random
 import os # <--- Para manejo de archivos y rutas
-import logging # <--- Para manejo de logs
 import gc  # <--- Para liberar RAM
 from datetime import datetime
+from bot.logger import MiLogger  # <--- Logger personalizado para este script
 
 # --- CONFIGURACIÓN DE RUTAS Y LOGS ---
-log_dir = 'logs'
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
 
-log_file = os.path.join(log_dir, f"scraping_{datetime.now().strftime('%Y-%m-%d')}.log")
-
-logging.basicConfig(
-    filename=log_file,
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
-)
+log = MiLogger("logs", os.path.basename(__file__))
 
 # --- CONFIGURACIÓN DE GUARDADO INICIAL ---
 fecha_hoy = datetime.now().strftime("%d-%m-%Y")
@@ -68,23 +58,23 @@ for loc in locations:
                 df_res['search_query'] = term
                 
                 if save_to_csv(df_res, ruta_final):
-                    logging.info(f"Éxito y Guardado: {len(df_res)} empleos en {loc} para {term}.")
+                    log.info(f"Éxito y Guardado: {len(df_res)} empleos en {loc} para {term}.")
                 
                 # Liberación agresiva de RAM
                 del df_res
             else:
-                logging.warning(f"No se encontraron resultados para {term} en {loc}.")
+                log.warning(f"No se encontraron resultados para {term} en {loc}.")
 
             del jobs
             gc.collect()  # <--- Forzamos limpieza de basura en RAM
 
         except Exception as e:
-            logging.error(f"Error buscando {term} en {loc}: {str(e)}")
+            log.error(f"Error buscando {term} en {loc}: {str(e)}")
 
         time.sleep(random.uniform(random_pet[0], random_pet[1]))
 
 # 2. Búsqueda Remota
-logging.info("------  Iniciando empleos remotos ------")
+log.info("------  Iniciando empleos remotos ------")
 
 for term in search_terms:
     try:
@@ -104,7 +94,7 @@ for term in search_terms:
             df_temp['search_query'] = term
             
             save_to_csv(df_temp, ruta_final)
-            logging.info(f"Éxito y Guardado: {len(df_temp)} empleos remotos para {term}.")
+            log.info(f"Éxito y Guardado: {len(df_temp)} empleos remotos para {term}.")
             
             del df_temp
         
@@ -112,13 +102,13 @@ for term in search_terms:
         gc.collect()
 
     except Exception as e:
-        logging.error(f"Error en búsqueda remota de {term}: {str(e)}")
+        log.error(f"Error en búsqueda remota de {term}: {str(e)}")
 
     time.sleep(random.uniform(random_pet[0], random_pet[1]))
 
 # --- LIMPIEZA FINAL DE DUPLICADOS (Sobre el archivo ya guardado) ---
 if os.path.exists(ruta_final):
-    logging.info("Iniciando limpieza de duplicados en el archivo final...")
+    log.info("Iniciando limpieza de duplicados en el archivo final...")
     df_final = pd.read_csv(ruta_final)
     antes = len(df_final)
     
@@ -126,9 +116,9 @@ if os.path.exists(ruta_final):
     df_final.drop_duplicates(subset=['title', 'company', 'location'], keep='first', inplace=True)
     
     df_final.to_csv(ruta_final, index=False, encoding='utf-8')
-    logging.info(f"Limpieza completa: de {antes} a {len(df_final)} registros únicos.")
+    log.info(f"Limpieza completa: de {antes} a {len(df_final)} registros únicos.")
     
     del df_final
     gc.collect()
 
-logging.info(f"Proceso finalizado. Archivo disponible en: {ruta_final}")
+log.info(f"Proceso finalizado. Archivo disponible en: {ruta_final}")

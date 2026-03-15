@@ -4,11 +4,12 @@
 import pandas as pd
 import glob
 import os
-import logging
 import gc
 import shutil  # Para borrar las carpetas diarias
 import argparse  # Para argumentos de línea de comandos
 from datetime import datetime, timedelta
+from bot.logger import MiLogger
+
 
 # --- 0. PARSER DE ARGUMENTOS ---
 parser = argparse.ArgumentParser(description='Script de consolidación mensual de datos de LinkedIn')
@@ -17,17 +18,8 @@ parser.add_argument('--auto', action='store_true',
 args = parser.parse_args()
 
 # --- 1. CONFIGURACIÓN DE LOGS ---
-log_dir = 'logs'
-if not os.path.exists(log_dir): os.makedirs(log_dir)
 
-log_file = os.path.join(log_dir, f"consolidacion_mensual_{datetime.now().strftime('%Y-%m')}.log")
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S',
-    handlers=[logging.FileHandler(log_file, encoding='utf-8'), logging.StreamHandler()]
-)
+log = MiLogger("logs", os.path.basename(__file__))
 
 # --- 2. DETERMINAR EL MES A PROCESAR ---
 hoy = datetime.now()
@@ -37,7 +29,7 @@ if args.auto:
 else:
     # En modo manual (por defecto) procesamos el mes actual
     mes_a_procesar = hoy.strftime("%m-%Y")
-    logging.info("MODO MANUAL: Procesando el MES ACTUAL")
+    log.info("MODO MANUAL: Procesando el MES ACTUAL")
 
 # --- 3. PROCESAMIENTO INCREMENTAL ---
 # Buscamos las carpetas diarias: scraps/DD-MM-YYYY/
@@ -55,11 +47,11 @@ ruta_temporal = os.path.join(data_dir, f"temp_{mes_a_procesar}.csv")
 sufijo = ""
 if args.auto:
     sufijo = "_F"
-    logging.info("DÍA 1 DEL MES: Se añadirá sufijo '_F' al archivo final")
+    log.info("DÍA 1 DEL MES: Se añadirá sufijo '_F' al archivo final")
 
 ruta_final = os.path.join(carpeta_mes, f"dataset_{mes_a_procesar}{sufijo}.csv")
 
-logging.info(f"Iniciando consolidación de {len(archivos)} archivos de {len(carpetas_diarias)} días...")
+log.info(f"Iniciando consolidación de {len(archivos)} archivos de {len(carpetas_diarias)} días...")
 
 # Paso 1: Unir archivos en un temporal
 for i, archivo in enumerate(archivos):
@@ -69,12 +61,12 @@ for i, archivo in enumerate(archivos):
         del temp_df
         if i % 5 == 0: gc.collect()
     except Exception as e:
-        logging.error(f"Error procesando {archivo}: {e}")
+        log.error(f"Error procesando {archivo}: {e}")
 
 # Paso 2: Limpieza y creación de la carpeta final
 exito_guardado = False
 if os.path.exists(ruta_temporal):
-    logging.info("Limpiando duplicados y generando archivo maestro...")
+    log.info("Limpiando duplicados y generando archivo maestro...")
     
     df_maestro = pd.read_csv(ruta_temporal, engine='c')
     os.remove(ruta_temporal) 
@@ -87,32 +79,32 @@ if os.path.exists(ruta_temporal):
 
     try:
         df_maestro.to_csv(ruta_final, index=False, encoding='utf-8')
-        logging.info(f"¡ÉXITO! Archivo guardado en: {ruta_final}")
+        log.info(f"¡ÉXITO! Archivo guardado en: {ruta_final}")
         exito_guardado = True # Marcamos que el archivo está a salvo
     except Exception as e:
-        logging.critical(f"Error fatal al guardar: {e}")
+        log.critical(f"Error fatal al guardar: {e}")
     
     del df_maestro
     gc.collect()
 else:
-    logging.warning(f"No había datos para {mes_a_procesar}.")
+    log.warning(f"No había datos para {mes_a_procesar}.")
 
 # --- 4. BORRADO DE CARPETAS DIARIAS (LIMPIEZA DE SCRAPS) ---
 if exito_guardado:
     if not args.auto:
-        logging.info("MODO MANUAL: No se borrarán las carpetas diarias. Los informes se mantienen en scraps/")
+        log.info("MODO MANUAL: No se borrarán las carpetas diarias. Los informes se mantienen en scraps/")
     else:
-        logging.info(f"Iniciando borrado de carpetas diarias de {mes_a_procesar}...")
+        log.info(f"Iniciando borrado de carpetas diarias de {mes_a_procesar}...")
         for carpeta in carpetas_diarias:
             try:
                 shutil.rmtree(carpeta) # Borra la carpeta y todo su contenido
-                logging.info(f"Eliminada: {carpeta}")
+                log.info(f"Eliminada: {carpeta}")
             except Exception as e:
-                logging.error(f"No se pudo borrar {carpeta}: {e}")
-        logging.info("Limpieza de scraps completada.")
+                log.error(f"No se pudo borrar {carpeta}: {e}")
+        log.info("Limpieza de scraps completada.")
 else:
-    logging.warning("No se borraron las carpetas diarias porque el archivo maestro no se generó.")
+    log.warning("No se borraron las carpetas diarias porque el archivo maestro no se generó.")
 
 # Finalización
 del carpetas_diarias, archivos, mes_a_procesar, carpeta_mes, ruta_temporal, ruta_final
-logging.info("Proceso mensual finalizado.")
+log.info("Proceso mensual finalizado.")
