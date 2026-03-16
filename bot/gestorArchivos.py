@@ -34,21 +34,22 @@ class GestorArchivos: # Sugerencia: Usar CamelCase para clases
             Path: El archivo más reciente encontrado, o None si no hay archivos
         """
         # Unimos las rutas de forma correcta con /
-        ruta = self.ruta_base / carpeta if carpeta else self.ruta_base
+        ruta = os.path.join(self.ruta_base, carpeta) if carpeta else self.ruta_base
 
-        if not ruta.is_dir():
+        if not os.path.isdir(ruta):
             return None
 
         # Buscamos archivos recursivamente usando rglob (navega como árbol)
         patron = "**/*" if tipo_archivo is None else f"**/*.{tipo_archivo}"
-        archivos = list(ruta.glob(patron))
-        
+
+        archivos = list(Path(ruta).rglob(patron))
+
         # Filtramos solo archivos (no directorios)
         archivos = [f for f in archivos if f.is_file()]
-        
+
         if not archivos:
             return None
-        
+
         # Usamos la propiedad .stat().st_mtime de pathlib
         return max(archivos, key=lambda f: f.stat().st_mtime)
     
@@ -64,4 +65,4 @@ class GestorArchivos: # Sugerencia: Usar CamelCase para clases
     
 
 # Creamos una instancia global del gestor de archivos
-gestor = GestorArchivos("../")
+gestor = GestorArchivos(".")

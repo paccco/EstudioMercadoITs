@@ -7,8 +7,6 @@ from dotenv import load_dotenv
 
 # Funciones del bot (definidas antes de main para usarlas como callbacks)
 
-WDIR = os.getcwd()
-
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, logger: MiLogger):
     """Manejo de errores del bot"""
     logger.error(f"Error durante la ejecución: {context.error}")
@@ -19,14 +17,15 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, logg
 
 async def ejecutarJoin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Ejecuta el comando join.py"""    
-    script=os.path.join(WDIR, "scrapping", "Join.py")
-    bin=os.path.join(WDIR, ".venv/bin/python3")
+    script="scrapping.Join"
+    bin=".venv/bin/python3"
     await update.message.reply_text(f"Ejecutando {script}...")
-    debug = f"MALLOC_TRIM_THRESHOLD_=65536 PYTHONMALLOC=malloc {bin} -O {script}"
+    debug = f"MALLOC_TRIM_THRESHOLD_=65536 PYTHONMALLOC=malloc {bin} -m {script}"
     resultado = os.system(debug)
     if resultado == 0:
-        carpeta_logs = os.path.dirname(script) + "/logs/"
+        carpeta_logs = os.path.join("scrapping", "logs")
         mensaje = gestorArchivos.leerArchivo(gestorArchivos.obtenerUltimoArchivo(carpeta_logs, "log"), n_tail=6)
+
         await update.message.reply_text(mensaje)
     else:
         await update.message.reply_text(f"Error al ejecutar {script}. Código de salida: {resultado}")
