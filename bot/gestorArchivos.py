@@ -1,6 +1,6 @@
 import os 
 from pathlib import Path
-from logger import MiLogger
+from bot.logger import MiLogger
 
 class GestorArchivos: # Sugerencia: Usar CamelCase para clases
     _instancia = None
@@ -20,10 +20,6 @@ class GestorArchivos: # Sugerencia: Usar CamelCase para clases
         if not hasattr(self, 'inicializado'):
             self.ruta_base = Path(ruta_base)
             self.inicializado = True
-    
-    def getFatherDir(self, archivo):
-        # Obtiene el directorio padre del directorio del archivo dado
-        return os.path.dirname(os.path.dirname(os.path.abspath(archivo)))
 
     def obtenerUltimoArchivo(self, carpeta="", tipo_archivo=None):
         """
