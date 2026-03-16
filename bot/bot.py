@@ -2,8 +2,8 @@ import os
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from logger import MiLogger
+from gestorArchivos import gestor as gestorArchivos
 from dotenv import load_dotenv
-
 
 # Funciones del bot (definidas antes de main para usarlas como callbacks)
 
@@ -17,12 +17,18 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, logg
 
 async def ejecutarJoin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Ejecuta el comando join.py"""    
-    await update.message.reply_text("Ejecutando Join...")
-    resultado = os.system("MALLOC_TRIM_THRESHOLD_=65536 PYTHONMALLOC=malloc ../venv/bin/python3 -O Join.py")
+    FATHERDIR = gestorArchivos.getFatherDir(__file__)
+    SCRIPT=os.path.join(FATHERDIR, "Join.py")
+    BIN=os.path.join(FATHERDIR, ".venv/bin/python3")
+    await update.message.reply_text(f"Ejecutando {SCRIPT}...")
+    debug = f"MALLOC_TRIM_THRESHOLD_=65536 PYTHONMALLOC=malloc {BIN} -O {SCRIPT}"
+    resultado = os.system(debug)
     if resultado == 0:
-        await update.message.reply_text("Join ejecutado correctamente.")
+        carpeta_logs = FATHERDIR + "/logs/"
+        mensaje = gestorArchivos.leerArchivo(gestorArchivos.obtenerUltimoArchivo(carpeta_logs, "log"), n_tail=6)
+        await update.message.reply_text(mensaje)
     else:
-        await update.message.reply_text(f"Error al ejecutar Join. Código de salida: {resultado}")
+        await update.message.reply_text(f"Error al ejecutar {SCRIPT}. Código de salida: {resultado}")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra la ayuda con los comandos disponibles"""
@@ -37,7 +43,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     load_dotenv()
     # Configuración de logging
-    logger = MiLogger(".", "logs")
+    logger = MiLogger(os.path.dirname(__file__), os.path.basename(__file__))
 
     # Token del bot (se cargará desde variable de entorno o archivo .env)
     BOT_TOKEN = os.getenv("TEL_TOKEN")
@@ -49,6 +55,7 @@ def main():
         return
     
     # Crear la aplicación
+    logger.info("Inicializando aplicación...")
     application = Application.builder().token(BOT_TOKEN).build()
 
     # Registrar handlers de comandos

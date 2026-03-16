@@ -12,7 +12,7 @@ from bot.logger import MiLogger  # <--- Logger personalizado para este script
 
 # --- CONFIGURACIÓN DE RUTAS Y LOGS ---
 
-log = MiLogger("logs", os.path.basename(__file__))
+log = MiLogger(os.path.dirname(__file__), os.path.basename(__file__))
 
 # --- CONFIGURACIÓN DE GUARDADO INICIAL ---
 fecha_hoy = datetime.now().strftime("%d-%m-%Y")

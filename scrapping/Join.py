@@ -19,7 +19,7 @@ args = parser.parse_args()
 
 # --- 1. CONFIGURACIÓN DE LOGS ---
 
-log = MiLogger("logs", os.path.basename(__file__))
+log = MiLogger(os.path.dirname(__file__), os.path.basename(__file__))
 
 # --- 2. DETERMINAR EL MES A PROCESAR ---
 hoy = datetime.now()

@@ -3,10 +3,11 @@ import os
 import datetime
 
 class MiLogger:
-    def __init__(self, carpeta_logs, nombre_script):
+    def __init__(self, rutaAbsolutaCarpeta, nombre_script):
         # 1. Definir la ruta:
-        self.carpeta_raiz = carpeta_logs
-        self.subcarpeta = os.path.join(self.carpeta_raiz, nombre_script)
+        self.carpeta_raiz = rutaAbsolutaCarpeta
+        nombre_script = os.path.splitext(nombre_script)[0]  # Sin extensión
+        self.subcarpeta = os.path.join(self.carpeta_raiz, "logs", nombre_script)
         
         # 2. Crear las carpetas si no existen (makedirs crea toda la ruta)
         if not os.path.exists(self.subcarpeta):
