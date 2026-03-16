@@ -10,115 +10,121 @@ import gc  # <--- Para liberar RAM
 from datetime import datetime
 from bot.logger import MiLogger  # <--- Logger personalizado para este script
 
-# --- CONFIGURACIÓN DE RUTAS Y LOGS ---
 
-log = MiLogger(os.path.dirname(__file__), os.path.basename(__file__))
+def main():
+    """Función principal que ejecuta el scraping de ofertas de empleo."""
+    # --- CONFIGURACIÓN DE RUTAS Y LOGS ---
+    log = MiLogger(os.path.dirname(__file__), os.path.basename(__file__))
 
-# --- CONFIGURACIÓN DE GUARDADO INICIAL ---
-fecha_hoy = datetime.now().strftime("%d-%m-%Y")
-timestamp_archivo = datetime.now().strftime("%H-%M")
-ruta_carpeta = os.path.join(os.path.dirname(__file__), 'scraps', fecha_hoy)
-if not os.path.exists(ruta_carpeta):
-    os.makedirs(ruta_carpeta)
+    # --- CONFIGURACIÓN DE GUARDADO INICIAL ---
+    fecha_hoy = datetime.now().strftime("%d-%m-%Y")
+    timestamp_archivo = datetime.now().strftime("%H-%M")
+    ruta_carpeta = os.path.join(os.path.dirname(__file__), 'scraps', fecha_hoy)
+    if not os.path.exists(ruta_carpeta):
+        os.makedirs(ruta_carpeta)
 
-ruta_final = os.path.join(ruta_carpeta, f"ofertas_it_{timestamp_archivo}.csv")
+    ruta_final = os.path.join(ruta_carpeta, f"ofertas_it_{timestamp_archivo}.csv")
 
-# --- CONFIGURACIÓN DE BÚSQUEDA ---
-sites = ["linkedin", "indeed", "glassdoor"]
-locations = ["Málaga", "Granada", "Sevilla", "Madrid", "Barcelona"]
-search_terms = ["Data Engineer", "Data Analyst", "Python Developer", "Backend Engineer" ,"Software Developer", "IA Engineer"]
-random_pet = [7, 12] # Rango de espera aleatoria entre búsquedas (en segundos) para evitar bloqueos
+    # --- CONFIGURACIÓN DE BÚSQUEDA ---
+    sites = ["linkedin", "indeed", "glassdoor"]
+    locations = ["Málaga", "Granada", "Sevilla", "Madrid", "Barcelona"]
+    search_terms = ["Data Engineer", "Data Analyst", "Python Developer", "Backend Engineer" ,"Software Developer", "IA Engineer"]
+    random_pet = [7, 12] # Rango de espera aleatoria entre búsquedas (en segundos) para evitar bloqueos
 
-def save_to_csv(df, path):
-    # Guardamos el dataframe en modo append y libera memoria
-    if not df.empty:
-        # Escribir cabecera solo si el archivo no existe
-        file_exists = os.path.isfile(path)
-        df.to_csv(path, mode='a', index=False, header=not file_exists, encoding='utf-8')
-        return True
-    return False
+    def save_to_csv(df, path):
+        # Guardamos el dataframe en modo append y libera memoria
+        if not df.empty:
+            # Escribir cabecera solo si el archivo no existe
+            file_exists = os.path.isfile(path)
+            df.to_csv(path, mode='a', index=False, header=not file_exists, encoding='utf-8')
+            return True
+        return False
 
-# 1. Búsqueda Presencial
-for loc in locations:
+    # 1. Búsqueda Presencial
+    for loc in locations:
+        for term in search_terms:
+            try:
+                jobs = scrape_jobs(
+                    site_name=sites,
+                    search_term=term,
+                    location=loc,
+                    results_wanted=40,
+                    hours_old=24,
+                    is_remote=False,             
+                    linkedin_fetch_description=True 
+                )
+                
+                df_res = pd.DataFrame(jobs)
+                if not df_res.empty:
+                    df_res['search_location'] = loc
+                    df_res['search_query'] = term
+                    
+                    if save_to_csv(df_res, ruta_final):
+                        log.info(f"Éxito y Guardado: {len(df_res)} empleos en {loc} para {term}.")
+                    
+                    # Liberación agresiva de RAM
+                    del df_res
+                else:
+                    log.warning(f"No se encontraron resultados para {term} en {loc}.")
+
+                del jobs
+                gc.collect()  # <--- Forzamos limpieza de basura en RAM
+
+            except Exception as e:
+                log.error(f"Error buscando {term} en {loc}: {str(e)}")
+
+            time.sleep(random.uniform(random_pet[0], random_pet[1]))
+
+    # 2. Búsqueda Remota
+    log.info("------  Iniciando empleos remotos ------")
+
     for term in search_terms:
         try:
-            jobs = scrape_jobs(
+            jobs_remote = scrape_jobs(
                 site_name=sites,
                 search_term=term,
-                location=loc,
+                location="Spain",           
                 results_wanted=40,
-                hours_old=24,
-                is_remote=False,             
+                hours_old=24,           
+                is_remote=True,              
                 linkedin_fetch_description=True 
             )
             
-            df_res = pd.DataFrame(jobs)
-            if not df_res.empty:
-                df_res['search_location'] = loc
-                df_res['search_query'] = term
+            df_temp = pd.DataFrame(jobs_remote)
+            if not df_temp.empty:
+                df_temp['search_location'] = 'Remote (Spain)'
+                df_temp['search_query'] = term
                 
-                if save_to_csv(df_res, ruta_final):
-                    log.info(f"Éxito y Guardado: {len(df_res)} empleos en {loc} para {term}.")
+                save_to_csv(df_temp, ruta_final)
+                log.info(f"Éxito y Guardado: {len(df_temp)} empleos remotos para {term}.")
                 
-                # Liberación agresiva de RAM
-                del df_res
-            else:
-                log.warning(f"No se encontraron resultados para {term} en {loc}.")
-
-            del jobs
-            gc.collect()  # <--- Forzamos limpieza de basura en RAM
+                del df_temp
+            
+            del jobs_remote
+            gc.collect()
 
         except Exception as e:
-            log.error(f"Error buscando {term} en {loc}: {str(e)}")
+            log.error(f"Error en búsqueda remota de {term}: {str(e)}")
 
         time.sleep(random.uniform(random_pet[0], random_pet[1]))
 
-# 2. Búsqueda Remota
-log.info("------  Iniciando empleos remotos ------")
-
-for term in search_terms:
-    try:
-        jobs_remote = scrape_jobs(
-            site_name=sites,
-            search_term=term,
-            location="Spain",           
-            results_wanted=40,
-            hours_old=24,           
-            is_remote=True,              
-            linkedin_fetch_description=True 
-        )
+    # --- LIMPIEZA FINAL DE DUPLICADOS (Sobre el archivo ya guardado) ---
+    if os.path.exists(ruta_final):
+        log.info("Iniciando limpieza de duplicados en el archivo final...")
+        df_final = pd.read_csv(ruta_final)
+        antes = len(df_final)
         
-        df_temp = pd.DataFrame(jobs_remote)
-        if not df_temp.empty:
-            df_temp['search_location'] = 'Remote (Spain)'
-            df_temp['search_query'] = term
-            
-            save_to_csv(df_temp, ruta_final)
-            log.info(f"Éxito y Guardado: {len(df_temp)} empleos remotos para {term}.")
-            
-            del df_temp
+        df_final.drop_duplicates(subset=['job_url'], inplace=True)
+        df_final.drop_duplicates(subset=['title', 'company', 'location'], keep='first', inplace=True)
         
-        del jobs_remote
+        df_final.to_csv(ruta_final, index=False, encoding='utf-8')
+        log.info(f"Limpieza completa: de {antes} a {len(df_final)} registros únicos.")
+        
+        del df_final
         gc.collect()
 
-    except Exception as e:
-        log.error(f"Error en búsqueda remota de {term}: {str(e)}")
+    log.info(f"Proceso finalizado. Archivo disponible en: {ruta_final}")
 
-    time.sleep(random.uniform(random_pet[0], random_pet[1]))
 
-# --- LIMPIEZA FINAL DE DUPLICADOS (Sobre el archivo ya guardado) ---
-if os.path.exists(ruta_final):
-    log.info("Iniciando limpieza de duplicados en el archivo final...")
-    df_final = pd.read_csv(ruta_final)
-    antes = len(df_final)
-    
-    df_final.drop_duplicates(subset=['job_url'], inplace=True)
-    df_final.drop_duplicates(subset=['title', 'company', 'location'], keep='first', inplace=True)
-    
-    df_final.to_csv(ruta_final, index=False, encoding='utf-8')
-    log.info(f"Limpieza completa: de {antes} a {len(df_final)} registros únicos.")
-    
-    del df_final
-    gc.collect()
-
-log.info(f"Proceso finalizado. Archivo disponible en: {ruta_final}")
+if __name__ == "__main__":
+    main()
