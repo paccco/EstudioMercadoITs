@@ -13,8 +13,9 @@ import os
 import sys
 from pathlib import Path
 
+PATH_MAESTRO = os.path.join(os.path.dirname(__file__), 'data', 'dataset_maestro.csv')
 
-def append_to_maestro(input_files, maestro_path='data/dataset_maestro.csv', output_path=None, remove_duplicates=True):
+def append_to_maestro(input_files, maestro_path=PATH_MAESTRO, output_path=None, remove_duplicates=True):
     """
    Hace append de uno o varios archivos CSV al dataset_maestro.
     
@@ -26,7 +27,7 @@ def append_to_maestro(input_files, maestro_path='data/dataset_maestro.csv', outp
     """
     
     # Cargar el dataset maestro
-    print(f"Cargando dataset maestro: {maestro_path}")
+    print(f"Cargando dataset maestro: {os.path.basename(maestro_path)}")
     try:
         df_maestro = pd.read_csv(maestro_path)
         print(f"  - Filas actuales: {len(df_maestro)}")

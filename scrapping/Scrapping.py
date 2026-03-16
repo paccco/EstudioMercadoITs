@@ -17,7 +17,7 @@ log = MiLogger(os.path.dirname(__file__), os.path.basename(__file__))
 # --- CONFIGURACIÓN DE GUARDADO INICIAL ---
 fecha_hoy = datetime.now().strftime("%d-%m-%Y")
 timestamp_archivo = datetime.now().strftime("%H-%M")
-ruta_carpeta = os.path.join('scraps', fecha_hoy)
+ruta_carpeta = os.path.join(os.path.dirname(__file__), 'scraps', fecha_hoy)
 if not os.path.exists(ruta_carpeta):
     os.makedirs(ruta_carpeta)
 

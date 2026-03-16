@@ -37,7 +37,7 @@ carpetas_diarias = glob.glob(os.path.join('scraps', f'*-{mes_a_procesar}'))
 archivos = glob.glob(os.path.join('scraps', f'*-{mes_a_procesar}', '*.csv'))
 
 # Estructura de destino
-data_dir = 'data_mensual'
+data_dir = os.path.join(os.path.dirname(__file__), 'data_mensual')
 if not os.path.exists(data_dir): os.makedirs(data_dir)
 
 carpeta_mes = os.path.join(data_dir, f"resultado_{mes_a_procesar}")

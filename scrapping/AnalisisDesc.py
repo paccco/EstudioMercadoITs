@@ -95,7 +95,7 @@ nlp.vocab.vectors.clear()
 
 
 # --- PASO 3: Cargar tu DataFrame Local ---
-file_path = 'data/dataset_master.csv' 
+file_path = os.path.join(os.path.dirname(__file__), 'data', 'dataset_master.csv')
 
 df = pd.DataFrame()  # Inicializamos un DataFrame vacío por si el archivo no se encuentra
 if not os.path.exists(file_path):
