@@ -18,7 +18,7 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, logg
 async def ejecutarJoin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Ejecuta el comando join.py"""    
     FATHERDIR = gestorArchivos.getFatherDir(__file__)
-    SCRIPT=os.path.join(FATHERDIR, "Join.py")
+    SCRIPT=os.path.join(FATHERDIR, "scrapping", "Join.py")
     BIN=os.path.join(FATHERDIR, ".venv/bin/python3")
     await update.message.reply_text(f"Ejecutando {SCRIPT}...")
     debug = f"MALLOC_TRIM_THRESHOLD_=65536 PYTHONMALLOC=malloc {BIN} -O {SCRIPT}"
