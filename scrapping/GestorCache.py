@@ -1,6 +1,6 @@
 import os 
 import json
-from bot.logger import MiLogger
+from logger import MiLogger
 from geopy.geocoders import ArcGIS
 from geopy.extra.rate_limiter import RateLimiter
 
