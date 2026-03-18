@@ -1,7 +1,7 @@
 import os 
 import json
 from utils.logger import MiLogger
-from geopy.geocoders import ArcGIS
+from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
 
 # Asumimos que MiLogger ya existe en tu estructura
@@ -14,15 +14,16 @@ class GestorCache:
     _geo_cache_file = os.path.join(_ruta_cache_dir, 'geo_cache.json')
 
     def __new__(cls):
-        if not cls._instancia:
+        if cls._instancia is None:
             cls._instancia = super(GestorCache, cls).__new__(cls)
-            cls._logger = MiLogger(os.path.dirname(__file__), os.path.basename(__file__))
+            ruta = os.path.dirname(__file__)
+            nombre = os.path.basename(__file__)
+            cls._logger = MiLogger(ruta, nombre)
         return cls._instancia
 
     def __init__(self):
-        # Asegurar que la carpeta cache existe al instanciar
-        if not os.path.exists(self._ruta_cache_dir):
-            os.makedirs(self._ruta_cache_dir)
+        # Usamos el logger de la clase
+        self.log = self.__class__._logger
 
     def getGeoCache(self):
         """Carga el cache actual. Si no existe, devuelve dict vacío."""
@@ -39,22 +40,31 @@ class GestorCache:
         with open(self._geo_cache_file, 'w', encoding='utf-8') as f:
             json.dump(cache_completa, f, ensure_ascii=False, indent=4)
 
-    def _extraer_pais_provincia(self, location):
+    def _extraer_pais_ciudad(self, location):
         """
-        Lógica de parsing para ArcGIS: 
-        Retorna [País, Provincia/Estado]
+        Extrae País y Ciudad de forma estructurada usando los metadatos de la API.
+        Evita el parseo manual de comas que falla según la precisión del resultado.
         """
         if not location:
-            return ["No encontrado", "No encontrado"]
+            return ["Desconocido", "Desconocido"]
+
+        # 1. Acceso a los atributos estructurados (ArcGIS)
+        # ArcGIS devuelve un dict 'attributes' dentro de 'raw' con campos normalizados
+        attrs = getattr(location, 'raw', {}).get('attributes', {})
         
-        # Ejemplo: "Sevilla, Andalucía, ESP" -> ["Sevilla", "Andalucía", "ESP"]
-        partes = [p.strip() for p in location.address.split(',')]
-        
-        # ArcGIS suele poner el País al final y la Provincia/Comunidad justo antes
-        pais = partes[-1] if len(partes) >= 1 else "Desconocido"
-        provincia = partes[-2] if len(partes) >= 2 else pais # Si solo hay uno, repetimos
-        
-        return [pais, provincia]
+        # 2. Extracción de País con Fallbacks
+        # Prioridad: Atributo 'Country' -> 'CountryCode' -> Último segmento del address
+        pais = attrs.get('Country', attrs.get('CntryName'))
+        if not pais:
+            pais = location.address.split(',')[-1].strip()
+
+        # 3. Extracción de Ciudad/Provincia con Fallbacks
+        # Prioridad: 'City' (Ciudad) -> 'Region' (Provincia/Estado) -> Primera parte del address
+        ciudad = attrs.get('City', attrs.get('Region', attrs.get('District')))
+        if not ciudad:
+            ciudad = location.address.split(',')[0].strip()
+
+        return [pais, ciudad]
 
     def actualizar_misses(self, lista_misses):
         cache_actual = self.getGeoCache()
@@ -63,16 +73,20 @@ class GestorCache:
             return cache_actual
 
         self._logger.info(f"Procesando {len(lista_misses)} nuevas ubicaciones...")
-        
-        geolocator = ArcGIS(user_agent="geo_structured_cleaner")
-        geocode = RateLimiter(geolocator.geocode, min_delay_seconds=0.5)
+
+        geolocator = Nominatim(user_agent="geo_structured_cleaner", timeout=10)
+        geocode = RateLimiter(geolocator.geocode, 
+            min_delay_seconds=1.5, 
+            max_retries=3, 
+            error_wait_seconds=2.0
+            )
         
         cambios = False
         for i, texto in enumerate(lista_misses):
             try:
                 location = geocode(texto)
                 # GUARDAMOS LISTA: [País, Provincia]
-                cache_actual[texto] = self._extraer_pais_provincia(location)
+                cache_actual[texto] = self._extraer_pais_ciudad(location)
                 cambios = True
             except Exception as e:
                 self._logger.error(f"Error en {texto}: {e}")
