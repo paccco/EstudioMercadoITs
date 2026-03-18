@@ -8,7 +8,7 @@ import gc
 import shutil  # Para borrar las carpetas diarias
 import argparse  # Para argumentos de línea de comandos
 from datetime import datetime, timedelta
-from bot.logger import MiLogger
+from logger import MiLogger
 
 
 def main():

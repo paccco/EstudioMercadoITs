@@ -1,6 +1,6 @@
 import os 
 from pathlib import Path
-from bot.logger import MiLogger
+from logger import MiLogger
 
 class GestorArchivos: # Sugerencia: Usar CamelCase para clases
     _instancia = None

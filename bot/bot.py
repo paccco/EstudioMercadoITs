@@ -1,7 +1,7 @@
 import os
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from bot.logger import MiLogger
+from logger import MiLogger
 from bot.gestorArchivos import gestor as gestorArchivos
 from dotenv import load_dotenv
 
