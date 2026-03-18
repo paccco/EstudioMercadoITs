@@ -8,7 +8,7 @@ import random
 import os # <--- Para manejo de archivos y rutas
 import gc  # <--- Para liberar RAM
 from datetime import datetime
-from logger import MiLogger  # <--- Logger personalizado para este script
+from utils.logger import MiLogger  # <--- Logger personalizado para este script
 
 
 def main():
