@@ -81,6 +81,7 @@ Se ejecuta todas las madrugadas para capturar las nuevas ofertas publicadas en l
 ```
 ## 🛠 Historial de Refactorización
 
+* **Refactor (Módulo Bot - Rama `dev-bot`):** Se migró `GestorArchivos` a un patrón Singleton puro usando `pathlib`. En `bot.py` se sustituyó `os.system` por `subprocess.run` para mejor captura de logs y control de errores al invocar scripts.
 * **Refactor (Módulo Utils - Rama `dev-utils`):** Se ha modernizado la clase `MiLogger` insertando el uso robusto de `pathlib`, incorporando Tipado Estático (Type Hints) e impidiendo conflictos de re-asignación de path.
 
 ## Ideas futuras

@@ -1,68 +1,62 @@
-import os 
+import os
 from pathlib import Path
-from logger import MiLogger
+from typing import Optional, Union
+from utils.logger import MiLogger
 
-class GestorArchivos: # Sugerencia: Usar CamelCase para clases
+class GestorArchivos:
+    """Gestor de archivos implementado con patrón Singleton y Pathlib."""
     _instancia = None
-    _logger = None
 
     def __new__(cls, *args, **kwargs):
-        if not cls._logger:
-            cls._logger = MiLogger(os.path.dirname(__file__), os.path.basename(__file__))
-            cls._logger.info("Inicializando GestorArchivos...")
         if not cls._instancia:
             cls._instancia = super(GestorArchivos, cls).__new__(cls)
+            cls._instancia._inicializado = False
         return cls._instancia
 
-    def __init__(self, ruta_base):
-        # Cuidado: en un Singleton el __init__ se ejecuta cada vez que "creas" el objeto
-        # Solo inicializamos si no se ha hecho antes
-        if not hasattr(self, 'inicializado'):
-            self.ruta_base = Path(ruta_base)
-            self.inicializado = True
+    def __init__(self, ruta_base: Union[str, Path] = "."):
+        if not self._inicializado:
+            self._logger = MiLogger(str(Path(__file__).parent), Path(__file__).name)
+            self._logger.info("Inicializando GestorArchivos...")
+            self.ruta_base = Path(ruta_base).resolve()
+            self._inicializado = True
 
-    def obtenerUltimoArchivo(self, carpeta="", tipo_archivo=None):
+    def obtenerUltimoArchivo(self, carpeta: str = "", tipo_archivo: Optional[str] = None) -> Optional[Path]:
         """
-        Navega recursivamente como un árbol de directorios y obtiene 
-        el último archivo modificado del tipo especificado.
-        
-        Args:
-            carpeta: Directorio base desde donde buscar (relativo a ruta_base)
-            tipo_archivo: Extensión del archivo a buscar (sin el punto)
-        
-        Returns:
-            Path: El archivo más reciente encontrado, o None si no hay archivos
+        Navega recursivamente y obtiene el último archivo modificado.
         """
-        # Unimos las rutas de forma correcta con /
-        ruta = os.path.join(self.ruta_base, carpeta) if carpeta else self.ruta_base
+        ruta_absoluta = (self.ruta_base / carpeta).resolve()
 
-        if not os.path.isdir(ruta):
+        if not ruta_absoluta.is_dir():
+            self._logger.warning(f"La carpeta '{ruta_absoluta}' no existe.")
             return None
 
-        # Buscamos archivos recursivamente usando rglob (navega como árbol)
         patron = "**/*" if tipo_archivo is None else f"**/*.{tipo_archivo}"
-
-        archivos = list(Path(ruta).rglob(patron))
-
-        # Filtramos solo archivos (no directorios)
-        archivos = [f for f in archivos if f.is_file()]
+        archivos = [f for f in ruta_absoluta.rglob(patron) if f.is_file()]
 
         if not archivos:
             return None
 
-        # Usamos la propiedad .stat().st_mtime de pathlib
         return max(archivos, key=lambda f: f.stat().st_mtime)
     
-    def leerArchivo(self, ruta_archivo, n_tail=None):
-        ruta = self.ruta_base / ruta_archivo
-        if not os.path.isfile(ruta):
+    def leerArchivo(self, ruta_archivo: Union[str, Path, None], n_tail: Optional[int] = None) -> str:
+        if ruta_archivo is None:
+            return "No se ha proporcionado una ruta válida."
+            
+        ruta = (self.ruta_base / ruta_archivo).resolve()
+        
+        if not ruta.is_file():
             return "No se encontró el archivo."
-        with open(ruta, 'r') as f:
-            contenido = f.read()
-            if n_tail is not None:
-                contenido = '\n'.join(contenido.split('\n')[-n_tail:])
-            return contenido
-    
+        
+        try:
+            with ruta.open('r', encoding='utf-8') as f:
+                if n_tail is None:
+                    return f.read()
+                
+                lineas = f.readlines()
+                return "".join(lineas[-n_tail:])
+        except Exception as e:
+            self._logger.error(f"Error leyendo archivo {ruta}: {e}")
+            return f"Error leyendo el archivo: {e}"
 
 # Creamos una instancia global del gestor de archivos
 gestor = GestorArchivos(".")
