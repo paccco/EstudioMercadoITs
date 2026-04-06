@@ -1,49 +1,53 @@
 import logging
-import os
-import datetime
+from pathlib import Path
+from datetime import date
+from typing import Union, Any
 
 class MiLogger:
-    def __init__(self, rutaAbsolutaCarpeta, nombre_script):
-        # 1. Definir la ruta:
-        self.carpeta_raiz = rutaAbsolutaCarpeta
-        nombre_script = os.path.splitext(nombre_script)[0]  # Sin extensión
-        self.subcarpeta = os.path.join(self.carpeta_raiz, "logs", nombre_script)
+    """Clase para la gestión centralizada de logs del proyecto."""
+    
+    def __init__(self, ruta_absoluta_carpeta: Union[str, Path], nombre_script: str) -> None:
+        """
+        Inicializa un manejador de logs para un script en particular.
         
-        # 2. Crear las carpetas si no existen (makedirs crea toda la ruta)
-        if not os.path.exists(self.subcarpeta):
-            os.makedirs(self.subcarpeta)
+        Args:
+            ruta_absoluta_carpeta: Directorio raíz donde reside el script.
+            nombre_script: Nombre del archivo del script, usado para catalogar los logs.
+        """
+        self.carpeta_raiz = Path(ruta_absoluta_carpeta)
+        # Extraemos el nombre del archivo sin extensión
+        n_script = Path(nombre_script).stem
+        self.subcarpeta = self.carpeta_raiz / "logs" / n_script
+        
+        # Crear los directorios padres y correspondientes
+        self.subcarpeta.mkdir(parents=True, exist_ok=True)
 
-        # 3. Crear un logger único para este script
-        self.logger = logging.getLogger(nombre_script)
+        self.logger = logging.getLogger(n_script)
         self.logger.setLevel(logging.INFO)
 
-        # 4. Evitar duplicar handlers (importante en POO)
-        if not self.logger.handlers:
-            fecha_hoy = datetime.date.today().strftime('%Y-%m-%d')
-            # El archivo se guardará en: logs/script1/2026-03-15.log
-            ruta_archivo = os.path.join(self.subcarpeta, f"{fecha_hoy}.log")
+        # Evitamos registrar handlers repetidos si el logger ya fue inicializado
+        if not self.logger.hasHandlers():
+            fecha_hoy = date.today().strftime('%Y-%m-%d')
+            ruta_archivo = self.subcarpeta / f"{fecha_hoy}.log"
 
-            # Formato profesional
             formato = logging.Formatter(
                 '%(asctime)s - %(levelname)s - %(message)s', 
                 datefmt='%H:%M:%S'
             )
 
-            # Handler para el archivo
             file_handler = logging.FileHandler(ruta_archivo, encoding='utf-8')
             file_handler.setFormatter(formato)
             self.logger.addHandler(file_handler)
 
-            # Handler opcional para ver en la terminal de la Raspberry
             console_handler = logging.StreamHandler()
             console_handler.setFormatter(formato)
             self.logger.addHandler(console_handler)
 
-    def info(self, mensaje):
+    def info(self, mensaje: Any) -> None:
         self.logger.info(mensaje)
 
-    def warning(self, mensaje):
+    def warning(self, mensaje: Any) -> None:
         self.logger.warning(mensaje)
 
-    def error(self, mensaje):
+    def error(self, mensaje: Any) -> None:
         self.logger.error(mensaje)

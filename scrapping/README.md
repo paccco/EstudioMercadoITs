@@ -79,6 +79,10 @@ Se ejecuta todas las madrugadas para capturar las nuevas ofertas publicadas en l
 ```bash
 00 01 1 * * cd /home/pacc/Desktop/scrapping && MALLOC_TRIM_THRESHOLD_=65536 PYTHONMALLOC=malloc ./env/bin/python3 -O Join.py >> logs/cron_mensual_$(date +\%m-\%Y).log 2>&1
 ```
+## 🛠 Historial de Refactorización
+
+* **Refactor (Módulo Utils - Rama `dev-utils`):** Se ha modernizado la clase `MiLogger` insertando el uso robusto de `pathlib`, incorporando Tipado Estático (Type Hints) e impidiendo conflictos de re-asignación de path.
+
 ## Ideas futuras
 
 Se pretende añadir un NLP para tratamiento del texto de las ofertas y así obtener el stack tecnológico más querido por las empresas en el sector. También estudiar la evolución del mercado en base a las nuevas tendencias y aprender sobre administración de sistemas levantando una IA en local(ya sea el NLP previamente mencionado o un LLM) en un dispositivo de capacidades limitadas extrayendo la mayor eficiencia posible.
