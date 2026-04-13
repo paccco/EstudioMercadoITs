@@ -1,0 +1,42 @@
+services:
+  scrapping-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.scrapping
+      network: host
+    image: linkedin-scrapping
+    container_name: scrapping-service
+    env_file:
+      - .env
+    environment:
+      - LOGS_DIR=/app/logs
+    volumes:
+      - logs_volume:/app/logs
+      - data_volume:/app/scrapping/scraps
+      - data_mensual_volume:/app/scrapping/data_mensual
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  bot-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+      network: host
+    image: linkedin-bot
+    container_name: bot-service
+    env_file:
+      - .env
+    environment:
+      - LOGS_DIR=/app/logs
+      - SCRAPPING_API_URL=http://scrapping-service:8000
+    volumes:
+      - logs_volume:/app/logs
+    depends_on:
+      - scrapping-service
+    restart: unless-stopped
+
+volumes:
+  logs_volume:
+  data_volume:
+  data_mensual_volume:

@@ -25,3 +25,6 @@ Incluye recursos y componentes transversales y estáticos consumibles por los ot
 - Visualizar de manera real, medible y unificada **el panorama y demandas tecnológicas** hacia los desarrolladores informáticos en el país.
 - Lograr una ejecución altamente paralela de scraping usando un hardware limitado optimizando cada Byte de memoria.
 - Explorar, y aplicar como fase de ampliación futura (actualmente en la pizarra de diseño), **Sistemas basados en LLM en el Edge** para procesar mediante NLP cada oferta con hardware ultraligero y descubrir con Inteligencia Artificial cuáles son esos lenguajes encubiertos requeridos en el cuerpo textual de las descripciones de las ofertas.
+## 🛠 Historial de Refactorización
+- `refactor(docker)`: Se crea ecosistema de microservicios. Se añaden `docker-compose.yml`, `Dockerfile.bot` y `Dockerfile.scrapping`.
+- `refactor(utils)`: `logger.py` actualizado para manejar rutas de volúmenes compartidos en Docker mediante la variable de entorno `LOGS_DIR`.

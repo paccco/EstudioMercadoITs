@@ -1,3 +1,4 @@
+import os
 import logging
 from pathlib import Path
 from datetime import date
@@ -14,10 +15,16 @@ class MiLogger:
             ruta_absoluta_carpeta: Directorio raíz donde reside el script.
             nombre_script: Nombre del archivo del script, usado para catalogar los logs.
         """
-        self.carpeta_raiz = Path(ruta_absoluta_carpeta)
         # Extraemos el nombre del archivo sin extensión
         n_script = Path(nombre_script).stem
-        self.subcarpeta = self.carpeta_raiz / "logs" / n_script
+        
+        # Override logs folder from environment variable if set (for Docker volumes)
+        logs_env = os.getenv("LOGS_DIR")
+        if logs_env:
+            self.subcarpeta = Path(logs_env) / n_script
+        else:
+            self.carpeta_raiz = Path(ruta_absoluta_carpeta)
+            self.subcarpeta = self.carpeta_raiz / "logs" / n_script
         
         # Crear los directorios padres y correspondientes
         self.subcarpeta.mkdir(parents=True, exist_ok=True)
