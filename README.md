@@ -1,0 +1,1 @@
+- `feat(api)`: Implementado `scrapping/api.py` (FastAPI) para publicar un /manifest de auto-descubrimiento y exponer endpoints encargados de disparar los scripts (`Join`, `Scrapping`) en background.
