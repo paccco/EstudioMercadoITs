@@ -1,0 +1,22 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Instalar dependencias del sistema si fueran necesarias
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar requirements o instalar dependencias básicas
+# NOTA: asumimos que hay un archivo requeriments genérico, o lo inyectamos acá
+RUN pip install --no-cache-dir python-telegram-bot httpx python-dotenv
+
+# Copiar el código relevante
+COPY bot /app/bot
+COPY utils /app/utils
+
+# Variables de entorno por defecto
+ENV PYTHONPATH=/app
+
+# Comando de ejecución
+CMD ["python", "-m", "bot.bot"]

@@ -1,0 +1,25 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instalar librerías de scraping y API
+RUN pip install --no-cache-dir pandas "jobspy>=1.1.48" fastapi uvicorn python-dotenv
+
+COPY scrapping /app/scrapping
+COPY utils /app/utils
+
+# Crear carpetas de datos
+RUN mkdir -p /app/scrapping/scraps /app/scrapping/data_mensual /app/logs
+
+ENV PYTHONPATH=/app
+
+# Exponer puerto de la API
+EXPOSE 8000
+
+# Lanzar FastAPI
+CMD ["uvicorn", "scrapping.api:app", "--host", "0.0.0.0", "--port", "8000"]
