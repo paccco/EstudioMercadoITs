@@ -11,3 +11,5 @@ logs/
 nuevos/
 data_mensual/
 *.json
+cache/
+mySkills/
