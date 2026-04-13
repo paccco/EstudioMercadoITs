@@ -1,0 +1,11 @@
+.git
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.env
+logs/
+scrapping/scraps/
+scrapping/data_mensual/
+*.ipynb
