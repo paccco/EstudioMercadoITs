@@ -1,5 +1,6 @@
 import os
-import subprocess
+import time
+import httpx
 from pathlib import Path
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
@@ -7,7 +8,8 @@ from utils.logger import MiLogger
 from bot.gestorArchivos import gestor as gestorArchivos
 from dotenv import load_dotenv
 
-# Funciones del bot (definidas antes de main para usarlas como callbacks)
+# Global manifest to build help menu
+MANIFEST_DATA = {}
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, logger: MiLogger) -> None:
     """Manejo de errores del bot"""
@@ -17,49 +19,51 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, logg
             "Ha ocurrido un error al procesar tu solicitud."
         )
 
-async def ejecutarJoin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Ejecuta el comando join.py usando subprocess de forma segura"""    
-    script = "scrapping.Join"
-    python_bin = ".venv/bin/python3"
-    
-    await update.message.reply_text(f"Ejecutando {script} con subprocess...")
-    
-    env_custom = os.environ.copy()
-    env_custom["MALLOC_TRIM_THRESHOLD_"] = "65536"
-    env_custom["PYTHONMALLOC"] = "malloc"
-    
-    try:
-        # Usamos subprocess.run que es más pythonico y bloqueante seguro
-        resultado = subprocess.run(
-            [python_bin, "-m", script],
-            env=env_custom,
-            capture_output=True,
-            text=True
-        )
-        
-        if resultado.returncode == 0:
-            carpeta_logs = "scrapping/logs"
-            ultimo_archivo = gestorArchivos.obtenerUltimoArchivo(carpeta_logs, "log")
-            
-            if ultimo_archivo:
-                mensaje = gestorArchivos.leerArchivo(ultimo_archivo, n_tail=6)
-                await update.message.reply_text(f"📜 Logs:\n{mensaje}")
-            else:
-                await update.message.reply_text("Hecho, pero no se encontraron logs.")
-        else:
-            await update.message.reply_text(f"⚠️ Error. Código de salida: {resultado.returncode}\nDetalles:\n{resultado.stderr[-500:]}")
-            
-    except Exception as e:
-        await update.message.reply_text(f"🛑 Error crítico levantando proceso: {e}")
-
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Muestra la ayuda con los comandos disponibles"""
-    help_text = (
-        "Comandos disponibles:\n"
-        "/join - Unir todos los csv de este mes\n"
-        "/help - Mostrar esta ayuda\n"
-    )
+    """Muestra la ayuda con los comandos disponibles desde el manifiesto"""
+    help_text = "Comandos disponibles (Autodescubiertos):\n"
+    for cmd in MANIFEST_DATA.get("commands", []):
+        help_text += f"/{cmd['command']} - {cmd['description']}\n"
+    help_text += "/help - Mostrar esta ayuda\n"
     await update.message.reply_text(help_text)
+
+def fetch_manifest(logger: MiLogger) -> dict:
+    """Obtiene el manifiesto del scrapping API con reintentos."""
+    api_url = os.environ.get("SCRAPPING_API_URL", "http://scrapping-service:8000")
+    logger.info(f"Intentando conectar al API: {api_url}/manifest")
+    
+    for intento in range(10):
+        try:
+            r = httpx.get(f"{api_url}/manifest", timeout=5.0)
+            if r.status_code == 200:
+                logger.info("Manifiesto obtenido exitosamente.")
+                return r.json()
+        except httpx.RequestError as e:
+            logger.warning(f"Intento {intento+1}/10 fallido al conectar con API: {e}")
+        time.sleep(2)
+        
+    logger.error("No se pudo obtener el manifiesto tras 10 intentos. Operando sin comandos dinámicos.")
+    return {"commands": []}
+
+def create_api_command_handler(endpoint: str, description: str, logger: MiLogger):
+    """Crea un handler para un endpoint de la API."""
+    async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        api_url = os.environ.get("SCRAPPING_API_URL", "http://scrapping-service:8000")
+        await update.message.reply_text(f"🚀 Iniciando: {description}...\nEnviando petición a la API.")
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                r = await client.post(f"{api_url}{endpoint}", timeout=10.0)
+                if r.status_code == 200:
+                    data = r.json()
+                    await update.message.reply_text(f"✅ Respuesta del servidor:\n{data.get('message', str(data))}")
+                else:
+                    await update.message.reply_text(f"⚠️ El servidor respondió con código {r.status_code}:\n{r.text}")
+        except Exception as e:
+            logger.error(f"Error comunicando con API endpoint {endpoint}: {e}")
+            await update.message.reply_text(f"🛑 Error de red comunicando con API: {e}")
+            
+    return handler
 
 
 def main() -> None:
@@ -67,41 +71,48 @@ def main() -> None:
     # Configuración de logging
     logger = MiLogger(str(Path(__file__).parent), Path(__file__).name)
 
-    # Token del bot (se cargará desde variable de entorno o archivo .env)
     BOT_TOKEN = os.getenv("TEL_TOKEN")
-    
     if not BOT_TOKEN:
-        logger.error("No se ha definido TELEGRAM_BOT_TOKEN")
-        print("Error: Define la variable de entorno TELEGRAM_BOT_TOKEN")
-        print("Ejemplo: export TELEGRAM_BOT_TOKEN='tu_token_aqui'")
+        logger.error("No se ha definido TEL_TOKEN")
+        print("Error: Define la variable de entorno TEL_TOKEN")
         return
     
-    # Crear la aplicación
-    logger.info("Inicializando aplicación...")
+    # 1. Obtener manifiesto y guardarlo globalmente
+    global MANIFEST_DATA
+    MANIFEST_DATA = fetch_manifest(logger)
+    
+    # 2. Crear la aplicación
+    logger.info("Inicializando aplicación de Telegram...")
     application = Application.builder().token(BOT_TOKEN).build()
 
-    # Registrar handlers de comandos
-    application.add_handler(CommandHandler("join", ejecutarJoin))
+    # 3. Registrar handlers dinámicamente
+    for cmd_info in MANIFEST_DATA.get("commands", []):
+        cmd_name = cmd_info["command"]
+        endpoint = cmd_info["endpoint"]
+        desc = cmd_info["description"]
+        
+        handler = create_api_command_handler(endpoint, desc, logger)
+        application.add_handler(CommandHandler(cmd_name, handler))
+        logger.info(f"Comando /{cmd_name} registrado -> {endpoint}")
+
+    # Handler fijo de ayuda
     application.add_handler(CommandHandler("help", help_command))
 
+    # Filtros de seguridad
     ADMIN_ID = int(os.getenv("ID_AUTORIZADO", "0"))
     user_filter = filters.User(user_id=ADMIN_ID)
 
-    # Handler para mensajes de texto del usuario autorizado
+    # Handler para mensajes de texto perdidos
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & user_filter, help_command))
 
     async def intruder_alert(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.warning(f"⚠️ Intento de acceso de ID: {update.effective_user.id}")
     
     application.add_handler(MessageHandler(~user_filter, intruder_alert))
-
-    # Manejo de errores (usamos lambda para pasar el logger)
     application.add_error_handler(lambda up, ctx: error_handler(up, ctx, logger))
     
-    # Iniciar el bot
-    print("🤖 Bot iniciado")
+    logger.info("🤖 Bot iniciado y escuchando comandos")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
-
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,1 @@
+- `refactor(bot)`: Migrado a arquitectura de consumo de API. Se eliminó `subprocess.run()`. El bot ahora obtiene sus comandos dinámicamente llamando al endpoint `/manifest` del `scrapping-service` en su inicio usando `httpx` y registra de forma nativa los callbacks como peticiones HTTP asíncronas.
