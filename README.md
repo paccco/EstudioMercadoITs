@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # 📊 TryHardeo Linkedin (Job Market Insight: IT Edition)
 
 ![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
@@ -30,3 +30,4 @@ Incluye recursos y componentes transversales y estáticos consumibles por los ot
 - `refactor(docker)`: Se crea ecosistema de microservicios. Se añaden `docker-compose.yml`, `Dockerfile.bot` y `Dockerfile.scrapping`.
 - `refactor(utils)`: `logger.py` actualizado para manejar rutas de volúmenes compartidos en Docker mediante la variable de entorno `LOGS_DIR`.
 - `feat(api)`: Implementado `scrapping/api.py` (FastAPI) para publicar un /manifest de auto-descubrimiento y exponer endpoints encargados de disparar los scripts (`Join`, `Scrapping`) en background.
+- `refactor(bot)`: Migrado a arquitectura de consumo de API. Se eliminó `subprocess.run()`. El bot ahora obtiene sus comandos dinámicamente llamando al endpoint `/manifest` del `scrapping-service` en su inicio usando `httpx` y registra de forma nativa los callbacks como peticiones HTTP asíncronas.
