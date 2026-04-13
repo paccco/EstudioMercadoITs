@@ -3,7 +3,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Instalar librerías de scraping y API
-RUN pip install --no-cache-dir pandas "jobspy>=1.1.48" fastapi uvicorn python-dotenv
+RUN pip install --no-cache-dir pandas python-jobspy fastapi uvicorn python-dotenv
 
 COPY scrapping /app/scrapping
 COPY utils /app/utils
