@@ -17,6 +17,10 @@ services:
     ports:
       - "8000:8000"
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 380M
 
   bot-service:
     build:
@@ -35,6 +39,10 @@ services:
     depends_on:
       - scrapping-service
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 80M
 
 volumes:
   logs_volume:

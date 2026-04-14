@@ -11,7 +11,10 @@ COPY utils /app/utils
 # Crear carpetas de datos
 RUN mkdir -p /app/scrapping/scraps /app/scrapping/data_mensual /app/logs
 
-ENV PYTHONPATH=/app
+# Variables de optimización extrema de memoria para Edge (glibc)
+ENV PYTHONPATH=/app \
+    MALLOC_TRIM_THRESHOLD_=65536 \
+    PYTHONMALLOC=malloc
 
 # Exponer puerto de la API
 EXPOSE 8000
