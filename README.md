@@ -32,3 +32,4 @@ Incluye recursos y componentes transversales y estáticos consumibles por los ot
 - `feat(api)`: Implementado `scrapping/api.py` (FastAPI) para publicar un /manifest de auto-descubrimiento y exponer endpoints encargados de disparar los scripts (`Join`, `Scrapping`) en background.
 - `refactor(bot)`: Migrado a arquitectura de consumo de API. Se eliminó `subprocess.run()`. El bot ahora obtiene sus comandos dinámicamente llamando al endpoint `/manifest` del `scrapping-service` en su inicio usando `httpx` y registra de forma nativa los callbacks como peticiones HTTP asíncronas.
 - `refactor(edge)`: Ajustado para la RAM máxima de Raspberry Pi Zero; base image `alpine` para el BOT, barreras rígidas de RAM en el Orquestador y optimización MALLOC forzada en Scraper.
+- `refactor(serverless)`: Eliminado `api.py` asumiendo patrón de contenedores efímeros. Se añadió `scrapping/manifest.py` para devolver configuración vía STDOUT.
