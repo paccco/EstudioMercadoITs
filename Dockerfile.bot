@@ -2,6 +2,9 @@ FROM python:3.11-alpine
 
 WORKDIR /app
 
+# Instalar cliente Podman/Docker para comunicación DooD
+RUN apk add --no-cache docker-cli
+
 # Copiar requirements o instalar dependencias básicas
 # NOTA: asumimos que hay un archivo requeriments genérico, o lo inyectamos acá
 RUN pip install --no-cache-dir python-telegram-bot httpx python-dotenv

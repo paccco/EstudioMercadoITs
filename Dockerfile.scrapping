@@ -2,8 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instalar librerías de scraping y API
-RUN pip install --no-cache-dir pandas python-jobspy fastapi uvicorn python-dotenv
+# Instalar librerías de scraping
+RUN pip install --no-cache-dir pandas python-jobspy python-dotenv
 
 COPY scrapping /app/scrapping
 COPY utils /app/utils
@@ -16,8 +16,5 @@ ENV PYTHONPATH=/app \
     MALLOC_TRIM_THRESHOLD_=65536 \
     PYTHONMALLOC=malloc
 
-# Exponer puerto de la API
-EXPOSE 8000
-
-# Lanzar FastAPI
-CMD ["uvicorn", "scrapping.api:app", "--host", "0.0.0.0", "--port", "8000"]
+# Contenedor efímero: no hay CMD estático
+CMD ["python", "-m", "scrapping.manifest"]
