@@ -1,6 +1,7 @@
 import os
-import time
-import httpx
+import json
+import asyncio
+import subprocess
 from pathlib import Path
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
@@ -21,54 +22,70 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, logg
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Muestra la ayuda con los comandos disponibles desde el manifiesto"""
-    help_text = "Comandos disponibles (Autodescubiertos):\n"
+    help_text = "Comandos disponibles (Autodescubiertos Serverless):\n"
     for cmd in MANIFEST_DATA.get("commands", []):
         help_text += f"/{cmd['command']} - {cmd['description']}\n"
     help_text += "/help - Mostrar esta ayuda\n"
     await update.message.reply_text(help_text)
 
 def fetch_manifest(logger: MiLogger) -> dict:
-    """Obtiene el manifiesto del scrapping API con reintentos."""
-    api_url = os.environ.get("SCRAPPING_API_URL", "http://scrapping-service:8000")
-    logger.info(f"Intentando conectar al API: {api_url}/manifest")
-    
-    for intento in range(10):
-        try:
-            r = httpx.get(f"{api_url}/manifest", timeout=5.0)
-            if r.status_code == 200:
-                logger.info("Manifiesto obtenido exitosamente.")
-                return r.json()
-        except httpx.RequestError as e:
-            logger.warning(f"Intento {intento+1}/10 fallido al conectar con API: {e}")
-        time.sleep(2)
+    """Obtiene el manifiesto ejecutando el script de manifest en un contenedor efímero."""
+    logger.info("Intentando obtener el manifiesto usando Podman/Docker en modo DooD...")
+    try:
+        cmd = [
+            "docker", "run", "--rm",
+            "linkedin-scrapping",
+            "python", "-m", "scrapping.manifest"
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        if result.returncode == 0:
+            logger.info("Manifiesto obtenido exitosamente desde contenedor efímero.")
+            return json.loads(result.stdout)
+        else:
+            logger.error(f"Error cargando manifest. Salida: {result.stderr}")
+    except Exception as e:
+        logger.error(f"Error crítico en fetch_manifest: {e}")
         
-    logger.error("No se pudo obtener el manifiesto tras 10 intentos. Operando sin comandos dinámicos.")
     return {"commands": []}
 
-def create_api_command_handler(endpoint: str, description: str, logger: MiLogger):
-    """Crea un handler para un endpoint de la API."""
+def create_ephemeral_handler(script: str, description: str, logger: MiLogger):
+    """Crea un handler que lanza un contenedor efímero con Socket de Podman."""
     async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        api_url = os.environ.get("SCRAPPING_API_URL", "http://scrapping-service:8000")
-        await update.message.reply_text(f"🚀 Iniciando: {description}...\nEnviando petición a la API.")
+        await update.message.reply_text(f"🚀 Iniciando: {description}...\nLevantando entorno de memoria controlada y desechable.")
         
         try:
-            async with httpx.AsyncClient() as client:
-                r = await client.post(f"{api_url}{endpoint}", timeout=10.0)
-                if r.status_code == 200:
-                    data = r.json()
-                    await update.message.reply_text(f"✅ Respuesta del servidor:\n{data.get('message', str(data))}")
-                else:
-                    await update.message.reply_text(f"⚠️ El servidor respondió con código {r.status_code}:\n{r.text}")
+            # Mapeamos explícitamente los volúmenes del compose en formato DooD
+            cmd = [
+                "docker", "run", "--rm",
+                "-v", "linkedintryhardeo_data_volume:/app/scrapping/scraps",
+                "-v", "linkedintryhardeo_data_mensual_volume:/app/scrapping/data_mensual",
+                "-v", "linkedintryhardeo_logs_volume:/app/logs",
+                "-e", "LOGS_DIR=/app/logs",
+                "linkedin-scrapping",
+                "python", "-m", script
+            ]
+            
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            stdout, stderr = await process.communicate()
+            
+            if process.returncode == 0:
+                await update.message.reply_text(f"✅ Tarea completada exitosamente. Contenedor aniquilado.\nSalida:\n{stdout.decode()[-500:]}")
+            else:
+                await update.message.reply_text(f"⚠️ El contenedor colapsó o reportó error (Código {process.returncode}):\n{stderr.decode()[-500:]}")
         except Exception as e:
-            logger.error(f"Error comunicando con API endpoint {endpoint}: {e}")
-            await update.message.reply_text(f"🛑 Error de red comunicando con API: {e}")
+            logger.error(f"Error de sistema gestionando contenedor efímero para {script}: {e}")
+            await update.message.reply_text(f"🛑 Error crítico levantando contenedor de la API: {e}")
             
     return handler
 
 
 def main() -> None:
     load_dotenv()
-    # Configuración de logging
     logger = MiLogger(str(Path(__file__).parent), Path(__file__).name)
 
     BOT_TOKEN = os.getenv("TEL_TOKEN")
@@ -77,41 +94,36 @@ def main() -> None:
         print("Error: Define la variable de entorno TEL_TOKEN")
         return
     
-    # 1. Obtener manifiesto y guardarlo globalmente
+    # Obtener manifiesto invocando el motor del HOST
     global MANIFEST_DATA
     MANIFEST_DATA = fetch_manifest(logger)
     
-    # 2. Crear la aplicación
     logger.info("Inicializando aplicación de Telegram...")
     application = Application.builder().token(BOT_TOKEN).build()
 
-    # 3. Registrar handlers dinámicamente
     for cmd_info in MANIFEST_DATA.get("commands", []):
         cmd_name = cmd_info["command"]
-        endpoint = cmd_info["endpoint"]
+        script_path = cmd_info["script"]
         desc = cmd_info["description"]
         
-        handler = create_api_command_handler(endpoint, desc, logger)
+        handler = create_ephemeral_handler(script_path, desc, logger)
         application.add_handler(CommandHandler(cmd_name, handler))
-        logger.info(f"Comando /{cmd_name} registrado -> {endpoint}")
+        logger.info(f"Comando Serverless /{cmd_name} registrado -> {script_path}")
 
-    # Handler fijo de ayuda
     application.add_handler(CommandHandler("help", help_command))
 
-    # Filtros de seguridad
     ADMIN_ID = int(os.getenv("ID_AUTORIZADO", "0"))
     user_filter = filters.User(user_id=ADMIN_ID)
 
-    # Handler para mensajes de texto perdidos
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & user_filter, help_command))
 
     async def intruder_alert(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        logger.warning(f"⚠️ Intento de acceso de ID: {update.effective_user.id}")
+        logger.warning(f"⚠️ Intento de acceso foráneo de ID: {update.effective_user.id}")
     
     application.add_handler(MessageHandler(~user_filter, intruder_alert))
     application.add_error_handler(lambda up, ctx: error_handler(up, ctx, logger))
     
-    logger.info("🤖 Bot iniciado y escuchando comandos")
+    logger.info("🤖 Bot Node iniciado. Motor Podman/Docker adjuntado.")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":

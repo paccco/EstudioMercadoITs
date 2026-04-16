@@ -34,3 +34,4 @@ Incluye recursos y componentes transversales y estáticos consumibles por los ot
 - `refactor(edge)`: Ajustado para la RAM máxima de Raspberry Pi Zero; base image `alpine` para el BOT, barreras rígidas de RAM en el Orquestador y optimización MALLOC forzada en Scraper.
 - `refactor(serverless)`: Eliminado `api.py` asumiendo patrón de contenedores efímeros. Se añadió `scrapping/manifest.py` para devolver configuración vía STDOUT.
 - `feat(podman)`: Rediseño Docker-out-of-Docker para funcionar con Socket Rootless de Podman. Imagen base Scraper reducida y desactivada permanentemente en orquesta (`profiles: ["donotstart"]`). Bot modificado para controlar el motor host a través del cliente CLI `docker`.
+- `feat(bot)`: Migrado al nuevo Engine Serverless de Podman. El bot ahora consume `docker-cli` internamente para generar los jobs a través de contenedores efímeros volátiles.
