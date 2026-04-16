@@ -20,7 +20,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 380M
+          memory: 300M
 
   bot-service:
     build:
