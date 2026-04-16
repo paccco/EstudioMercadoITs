@@ -14,9 +14,8 @@ services:
       - logs_volume:/app/logs
       - data_volume:/app/scrapping/scraps
       - data_mensual_volume:/app/scrapping/data_mensual
-    ports:
-      - "8000:8000"
-    restart: unless-stopped
+    profiles:
+      - donotstart
     deploy:
       resources:
         limits:
@@ -36,8 +35,7 @@ services:
       - SCRAPPING_API_URL=http://scrapping-service:8000
     volumes:
       - logs_volume:/app/logs
-    depends_on:
-      - scrapping-service
+      - ${XDG_RUNTIME_DIR:-/run/user/1000}/podman/podman.sock:/var/run/docker.sock
     restart: unless-stopped
     deploy:
       resources:
