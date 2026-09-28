@@ -1,31 +1,31 @@
-name: Build, Test y Deploy Scraper
+name: CI/CD Scrapper
 
 on:
   push:
-    branches: [ "main" , "dev" ]
+    branches: [ "main", "dev" ]
+    paths:
+      - "scrapper/**"
+      - ".github/workflows/ci-cd-scrapper.yml"
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ${{ github.repository }}-scrapper
 
 jobs:
-  # 1. Construir imagen y probar ejecución real en contenedor
   build-and-smoke-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout del código
         uses: actions/checkout@v4
 
-      - name: Construir imagen Docker para pruebas locales (x86_64)
+      - name: Construir imagen local para test
         run: |
-          docker build -t scraper-test:latest .
+          docker build -t scraper-test:latest ./scrapper
 
-      - name: Ejecutar Smoke Test dentro del contenedor
+      - name: Ejecutar Smoke Test en contenedor
         run: |
-          # Si el script falla o lanza una excepción no capturada, el contenedor devuelve != 0 y el pipeline se corta
           docker run --rm -e TEST_MODE=1 scraper-test:latest
 
-  # 2. Compilar para la Raspberry Pi (ARM64) y subir a GitHub Packages
   build-arm-and-push:
     needs: build-and-smoke-test
     runs-on: ubuntu-latest
@@ -37,33 +37,33 @@ jobs:
       - name: Checkout del código
         uses: actions/checkout@v4
 
-      - name: Configurar QEMU para emular ARM64
+      - name: Configurar QEMU (ARM64)
         uses: docker/setup-qemu-action@v3
 
       - name: Configurar Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login en GitHub Packages (GHCR)
+      - name: Login en GitHub Packages
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Compilar y subir imagen ARM64 a GHCR
+      - name: Compilar y publicar imagen ARM64
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./scrapper
+          file: ./scrapper/Dockerfile
           platforms: linux/arm64
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # 3. Descarga y actualización en la Raspberry Pi
   deploy-raspberry:
     needs: build-arm-and-push
-    runs-on: self-hosted  # Tu runner activo en la Pi Zero 2 W
+    runs-on: self-hosted
     steps:
       - name: Iniciar sesión en el registro GHCR
         run: |
@@ -73,6 +73,6 @@ jobs:
         run: |
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
-      - name: Limpiar imágenes antiguas sin usar
+      - name: Limpiar imágenes obsoletas
         run: |
           docker image prune -f
