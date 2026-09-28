@@ -9,7 +9,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}-scrapper
+  IMAGE_NAME: ${{ github.repository }}_scrapper
 
 jobs:
   build-and-smoke-test:
