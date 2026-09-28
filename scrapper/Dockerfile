@@ -19,4 +19,4 @@ RUN mkdir -p /app/scraps
 # Define /app como raíz de módulos para que 'src.s3_uploader' resuelva directamente
 ENV PYTHONPATH=/app
 
-CMD ["python", "scrapper/src/main.py"]
+CMD ["python", "src/main.py"]
