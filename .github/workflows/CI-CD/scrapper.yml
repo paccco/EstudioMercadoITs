@@ -2,7 +2,7 @@ name: Build, Test y Deploy Scraper
 
 on:
   push:
-    branches: [ "main" , "dev"]
+    branches: [ "main" , "dev" ]
 
 env:
   REGISTRY: ghcr.io
