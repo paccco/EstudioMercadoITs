@@ -20,11 +20,11 @@ jobs:
 
       - name: Construir imagen local para test
         run: |
-          docker build -t scraper-test:latest ./scrapper
+          docker build -t scraper_test:latest ./scrapper
 
       - name: Ejecutar Smoke Test en contenedor
         run: |
-          docker run --rm -e TEST_MODE=1 scraper-test:latest
+          docker run --rm -e TEST_MODE=1 scraper_test:latest
 
   build-arm-and-push:
     needs: build-and-smoke-test
