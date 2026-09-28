@@ -67,7 +67,7 @@ jobs:
     steps:
       - name: Formatear nombre de imagen a lowercase
         run: |
-          IMAGE_LOWER=$(echo "${{ github.repository }}-scrapper" | tr '[:upper:]' '[:lower:]')
+          IMAGE_LOWER=$(echo "${{ github.repository }}_scrapper" | tr '[:upper:]' '[:lower:]')
           echo "IMAGE_NAME=$IMAGE_LOWER" >> $GITHUB_ENV
 
       - name: Iniciar sesión en el registro GHCR
