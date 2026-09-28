@@ -65,6 +65,11 @@ jobs:
     needs: build-arm-and-push
     runs-on: self-hosted
     steps:
+      - name: Formatear nombre de imagen a lowercase
+        run: |
+          IMAGE_LOWER=$(echo "${{ github.repository }}-scrapper" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_NAME=$IMAGE_LOWER" >> $GITHUB_ENV
+
       - name: Iniciar sesión en el registro GHCR
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -73,7 +78,24 @@ jobs:
         run: |
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
-      - name: Limpiar imágenes obsoletas
+      # --- FLUJO RAMA DEV: Ejecutar prueba y destruir imagen ---
+      - name: [DEV] Ejecutar scraping de prueba inmediata
+        if: github.ref == 'refs/heads/dev'
+        run: |
+          docker run --rm \
+            -v /home/pacc/.aws:/root/.aws:ro \
+            -v /home/pacc/scraps:/app/scraps \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: [DEV] Eliminar imagen descargada tras el test (siempre)
+        if: always() && github.ref == 'refs/heads/dev'
+        run: |
+          docker rmi -f ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          docker image prune -f
+
+      # --- FLUJO RAMA MAIN: Mantener imagen en la Pi y limpiar huérfanas ---
+      - name: [MAIN] Limpiar imágenes huérfanas obsoletas
+        if: github.ref == 'refs/heads/main'
         run: |
           docker image prune -f
           
