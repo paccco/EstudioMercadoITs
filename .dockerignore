@@ -1,9 +1,11 @@
 .git
+.github
 .venv
 __pycache__
 *.pyc
 *.pyo
 *.pyd
+*.csv
 .env
 logs/
 scrapping/scraps/

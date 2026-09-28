@@ -1,0 +1,4 @@
+pandas
+jobspy
+boto3
+pytest
