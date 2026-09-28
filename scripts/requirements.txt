@@ -1,2 +1,2 @@
-duckdb
+duckdb==1.5.5
 boto3
