@@ -150,12 +150,6 @@ def main() -> None:
         logger.info("Smoke test completado exitosamente.")
         return
 
-    # 4. Carga hacia AWS S3
-    bucket_name = os.getenv("BUCKET_NAME")
-    if not bucket_name:
-        logger.error("Variable BUCKET_NAME no definida. No se realiza la subida a S3.")
-        return
-
     if not ruta_final.exists():
         logger.warning("No se generó ningún CSV para persistir en S3.")
         return
@@ -163,7 +157,7 @@ def main() -> None:
     ahora = datetime.now()
     clave_s3 = f"raw/year={ahora.strftime('%Y')}/month={ahora.strftime('%m')}/{nombre_archivo}"
 
-    subir_a_s3(ruta_final, bucket_name, clave_s3)
+    subir_a_s3(ruta_final, "pipeline-scrapping-linkedin", clave_s3)
     logger.info("Ejecución finalizada con éxito.")
 
 
