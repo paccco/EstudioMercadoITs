@@ -76,3 +76,4 @@ jobs:
       - name: Limpiar imágenes obsoletas
         run: |
           docker image prune -f
+          
