@@ -24,6 +24,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger("Scrapper")
 
+BUCKET_BASE = "pipeline-scrapping-linkedin"
+
+
+def resolver_bucket(entorno: str) -> str:
+    """Calcula el nombre del bucket S3 según el entorno (prod o dev)."""
+    if entorno == "dev":
+        return f"{BUCKET_BASE}-dev"
+    return BUCKET_BASE
+
 
 def configurar_rutas() -> Tuple[Path, str]:
     """Genera las rutas de almacenamiento dentro de la carpeta del scrapper."""
@@ -106,18 +115,19 @@ def limpiar_duplicados(ruta_final: Path) -> None:
 
 def main() -> None:
     """Orquestador principal."""
+    app_env = os.getenv("APP_ENV", "prod").strip().lower()
+    bucket_target = resolver_bucket(app_env)
     ruta_final, nombre_archivo = configurar_rutas()
-    is_test = os.getenv("TEST_MODE", "0") == "1"
 
-    if is_test:
-        logger.info("=== EJECUCIÓN MODO TEST (CI) ===")
+    if app_env == "dev":
+        logger.info("=== EJECUCIÓN ENTORNO DEV (Prueba rápida hacia %s) ===", bucket_target)
         sites = ["indeed"]
         search_terms = ["Python Developer"]
         search_tasks = [(False, "Madrid")]
         results_wanted = 2
         delay_range = (1, 2)
     else:
-        logger.info("=== EJECUCIÓN MODO PRODUCCIÓN ===")
+        logger.info("=== EJECUCIÓN ENTORNO PROD (Carga completa hacia %s) ===", bucket_target)
         sites = ["linkedin", "indeed", "glassdoor"]
         search_terms = [
             "Data Engineer", "Data Analyst", "Python Developer",
@@ -142,14 +152,10 @@ def main() -> None:
             gc.collect()
             time.sleep(random.uniform(*delay_range))
 
-    # 2. Limpieza
+    # 2. Desduplicación final
     limpiar_duplicados(ruta_final)
 
-    # 3. Finalización temprana si es Smoke Test
-    if is_test:
-        logger.info("Smoke test completado exitosamente.")
-        return
-
+    # 3. Comprobación y subida a AWS S3
     if not ruta_final.exists():
         logger.warning("No se generó ningún CSV para persistir en S3.")
         return
@@ -157,8 +163,8 @@ def main() -> None:
     ahora = datetime.now()
     clave_s3 = f"raw/year={ahora.strftime('%Y')}/month={ahora.strftime('%m')}/{nombre_archivo}"
 
-    subir_a_s3(ruta_final, "pipeline-scrapping-linkedin", clave_s3)
-    logger.info("Ejecución finalizada con éxito.")
+    subir_a_s3(ruta_final, bucket_target, clave_s3)
+    logger.info("Pipeline completado exitosamente en entorno [%s].", app_env)
 
 
 if __name__ == "__main__":
