@@ -79,7 +79,7 @@ jobs:
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
       # --- FLUJO RAMA DEV: Ejecutar prueba y destruir imagen ---
-      - name: [DEV] Ejecutar scraping de prueba inmediata
+      - name: "[DEV] Ejecutar scraping de prueba inmediata"
         if: github.ref == 'refs/heads/dev'
         run: |
           docker run --rm \
@@ -87,14 +87,14 @@ jobs:
             -v /home/pacc/scraps:/app/scraps \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
-      - name: [DEV] Eliminar imagen descargada tras el test (siempre)
+      - name: "[DEV] Eliminar imagen descargada tras el test (siempre)"
         if: always() && github.ref == 'refs/heads/dev'
         run: |
           docker rmi -f ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           docker image prune -f
 
       # --- FLUJO RAMA MAIN: Mantener imagen en la Pi y limpiar huérfanas ---
-      - name: [MAIN] Limpiar imágenes huérfanas obsoletas
+      - name: "[MAIN] Limpiar imágenes huérfanas obsoletas"
         if: github.ref == 'refs/heads/main'
         run: |
           docker image prune -f
