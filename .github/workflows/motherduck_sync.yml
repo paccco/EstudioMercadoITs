@@ -1,0 +1,56 @@
+name: Sync S3 to MotherDuck
+
+on:
+  # 1. Ejecución periódica (Cron) -> Siempre apunta a PROD
+  schedule:
+    - cron: '0 4 * * *'  # Diario a las 04:00 UTC
+
+  # 2. Ejecución manual desde la UI Web de GitHub
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Selecciona el entorno de ejecución'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      # Determina el target: si es schedule -> prod; si es manual -> inputs.environment
+      - name: Set target environment
+        id: set-env
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "ENV_NAME=prod" >> $GITHUB_ENV
+          else
+            echo "ENV_NAME=${{ inputs.environment }}" >> $GITHUB_ENV
+          fi
+
+      - name: Run Bronze Ingestion Script
+        env:
+          # Inyecta dinámicamente las credenciales según el entorno calculado
+          MOTHERDUCK_TOKEN: ${{ env.ENV_NAME == 'prod' && secrets.MOTHERDUCK_TOKEN_PROD || secrets.MOTHERDUCK_TOKEN_DEV }}
+          AWS_ACCESS_KEY_ID: ${{ env.ENV_NAME == 'prod' && secrets.AWS_ACCESS_KEY_ID_PROD || secrets.AWS_ACCESS_KEY_ID_DEV }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.ENV_NAME == 'prod' && secrets.AWS_SECRET_ACCESS_KEY_PROD || secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          AWS_REGION: 'eu-north-1'
+          S3_BUCKET: ${{ env.ENV_NAME == 'prod' && 'mi-pipeline-datos-prod' || 'mi-pipeline-datos-dev' }}
+          MOTHERDUCK_DB: ${{ env.ENV_NAME == 'prod' && 'db_prod' || 'db_dev' }}
+        run: |
+          echo "Ejecutando ingesta en entorno: $ENV_NAME"
+          python scripts/sync_bronze.py 
