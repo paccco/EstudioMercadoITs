@@ -1,2 +1,6 @@
+<<<<<<< HEAD
 duckdb
+=======
+duckdb==1.5.5
+>>>>>>> dev
 boto3
