@@ -15,18 +15,7 @@ def list_s3_keys_under_prefix(s3_client, bucket, prefix):
     return keys
 
 def run_sync():
-    # 1. Variables de entorno
-    token = os.environ.get("MOTHERDUCK_TOKEN")
-    database = os.environ.get("MOTHERDUCK_DB")
-    bucket = os.environ.get("S3_BUCKET")
-    aws_region = os.environ.get("AWS_REGION")
-    aws_key = os.environ.get("AWS_ACCESS_KEY_ID")
-    aws_secret = os.environ.get("AWS_SECRET_ACCESS_KEY")
-
-    if not all([token, aws_key, aws_secret, bucket, database]):
-        print("[ERROR] Faltan variables de entorno obligatorias.")
-        sys.exit(1)
-
+    # 1. Configuración de variables de entorno
     table_name = "t_scraps_offers_b"
     full_table_path = f"bronze.{table_name}"
 
