@@ -3,7 +3,6 @@ import re
 import sys
 from datetime import date, datetime, timedelta
 import boto3
-from botocore.exceptions import ClientError
 import duckdb
 
 def list_s3_keys_under_prefix(s3_client, bucket, prefix):
@@ -16,45 +15,39 @@ def list_s3_keys_under_prefix(s3_client, bucket, prefix):
     return keys
 
 def run_sync():
-    # 1. Detección de entorno (dev por defecto para evitar sobreescrituras accidentales en prod)
-    env = os.environ.get("ENV", "dev").strip().lower()
-    
     # 1. Variables inyectadas directamente por GitHub Actions
-    env = os.environ.get("ENV", "dev").strip().lower()
+    env = os.environ.get("ENV").strip().lower()
     bucket = os.environ.get("S3_BUCKET")
     token = os.environ.get("MOTHERDUCK_TOKEN")
     aws_key = os.environ.get("AWS_ACCESS_KEY_ID")
     aws_secret = os.environ.get("AWS_SECRET_ACCESS_KEY")
-    database = os.environ.get("MOTHERDUCK_DB")
-    aws_region = os.environ.get("AWS_REGION")
-    aws_secret = os.environ.get("AWS_SECRET_ACCESS_KEY_DEV")
-
-    database = os.environ.get("MOTHERDUCK_DB")
     aws_region = os.environ.get("AWS_REGION")
 
-    print(f"[*] Ejecutando en entorno: {env.upper()} | Bucket objetivo: {bucket}")
+    # Derivación directa de la base de datos según el entorno
+    db_name = "db_prod" if env == "prod" else "db_dev"
+    table_name = "t_scrap_offers_b"
+    full_table_path = f"{db_name}.bronze.{table_name}"
 
-    if not all([token, aws_key, aws_secret, database]):
-        print(f"[ERROR] Faltan secretos obligatorios para el entorno '{env}'.")
+    print(f"[*] Ejecutando en entorno: {env.upper()} | DB: {db_name} | Bucket objetivo: {bucket}")
+
+    if not all([token, aws_key, aws_secret, bucket, aws_region]):
+        print(f"[ERROR] Faltan variables obligatorias para el entorno '{env}'.")
         sys.exit(1)
 
-    table_name = "t_scrap_offers_b"
-    full_table_path = f"bronze.{table_name}"
-
     # 2. Conexión y configuración de MotherDuck / S3
-    con = duckdb.connect(f"md:{database}?motherduck_token={token}")
+    con = duckdb.connect(f"md:{db_name}?motherduck_token={token}")
     con.execute("INSTALL httpfs; LOAD httpfs;")
     con.execute(f"""
         SET s3_region = '{aws_region}';
         SET s3_access_key_id = '{aws_key}';
         SET s3_secret_access_key = '{aws_secret}';
     """)
-    con.execute("CREATE SCHEMA IF NOT EXISTS bronze;")
+    con.execute(f"CREATE SCHEMA IF NOT EXISTS {db_name}.bronze;")
 
     # 3. Determinar la última fecha procesada
     check_table = con.execute(f"""
         SELECT COUNT(*) FROM information_schema.tables 
-        WHERE table_schema = 'bronze' AND table_name = '{table_name}';
+        WHERE table_catalog = '{db_name}' AND table_schema = 'bronze' AND table_name = '{table_name}';
     """).fetchone()[0]
 
     if check_table == 0:
