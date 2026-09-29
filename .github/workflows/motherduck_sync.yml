@@ -1,11 +1,8 @@
 name: Sync S3 to MotherDuck
 
 on:
-  # 1. Ejecución periódica (Cron) -> Siempre apunta a PROD
   schedule:
     - cron: '0 4 * * *'  # Diario a las 04:00 UTC
-
-  # 2. Ejecución manual desde la UI Web de GitHub
   workflow_dispatch:
     inputs:
       environment:
@@ -32,53 +29,25 @@ jobs:
       - name: Install dependencies
         run: pip install -r scripts/requirements.txt
 
-      # Determina el target: si es schedule -> prod; si es manual -> inputs.environment
       - name: Set target environment
-<<<<<<< HEAD
-        id: set-env
-        run: |
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            echo "ENV_NAME=prod" >> $GITHUB_ENV
-          else
-            echo "ENV_NAME=${{ inputs.environment }}" >> $GITHUB_ENV
-=======
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
             echo "TARGET_ENV=prod" >> "$GITHUB_ENV"
           else
             echo "TARGET_ENV=${{ inputs.environment }}" >> "$GITHUB_ENV"
->>>>>>> dev
           fi
 
       - name: Run Bronze Ingestion Script
         env:
-<<<<<<< HEAD
-          # Inyecta dinámicamente las credenciales según el entorno calculado
-          MOTHERDUCK_TOKEN: ${{ env.ENV_NAME == 'prod' && secrets.MOTHERDUCK_TOKEN_PROD || secrets.MOTHERDUCK_TOKEN_DEV }}
-          AWS_ACCESS_KEY_ID: ${{ env.ENV_NAME == 'prod' && secrets.AWS_ACCESS_KEY_ID_PROD || secrets.AWS_ACCESS_KEY_ID_DEV }}
-          AWS_SECRET_ACCESS_KEY: ${{ env.ENV_NAME == 'prod' && secrets.AWS_SECRET_ACCESS_KEY_PROD || secrets.AWS_SECRET_ACCESS_KEY_DEV }}
-          AWS_REGION: 'eu-north-1'
-          S3_BUCKET: ${{ env.ENV_NAME == 'prod' && 'mi-pipeline-datos-prod' || 'mi-pipeline-datos-dev' }}
-          MOTHERDUCK_DB: ${{ env.ENV_NAME == 'prod' && 'db_prod' || 'db_dev' }}
-        run: |
-          echo "Ejecutando ingesta en entorno: $ENV_NAME"
-          python scripts/sync_bronze.py 
-=======
-          # Informa al script Python qué entorno está activo
           ENV: ${{ env.TARGET_ENV }}
-          
-          # Buckets reales del proyecto
-          S3_BUCKET: ${{ env.TARGET_ENV == 'prod' && 'pipeline-scrapping-linkedin' || 'pipeline-scrapping-linkedin-dev' }}
-          
-          # Credenciales dinámicas según el entorno calculado
-          MOTHERDUCK_TOKEN: ${{ env.TARGET_ENV == 'prod' && secrets.MOTHERDUCK_TOKEN_PROD || secrets.MOTHERDUCK_TOKEN_DEV }}
-          AWS_ACCESS_KEY_ID: ${{ env.TARGET_ENV == 'prod' && secrets.AWS_ACCESS_KEY_ID_PROD || secrets.AWS_ACCESS_KEY_ID_DEV }}
-          AWS_SECRET_ACCESS_KEY: ${{ env.TARGET_ENV == 'prod' && secrets.AWS_SECRET_ACCESS_KEY_PROD || secrets.AWS_SECRET_ACCESS_KEY_DEV }}
-          
-          # Configuración de base de datos y región
           AWS_REGION: 'eu-north-1'
-          MOTHERDUCK_DB: ${{ env.TARGET_ENV == 'prod' && 'db_prod' || 'db_dev' }}
+          # Secretos DEV
+          AWS_ACCESS_KEY_ID_DEV: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          AWS_SECRET_ACCESS_KEY_DEV: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          MOTHERDUCK_TOKEN_DEV: ${{ secrets.MOTHERDUCK_TOKEN_DEV }}
+          # Secretos PROD
+          AWS_ACCESS_KEY_ID_PROD: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          AWS_SECRET_ACCESS_KEY_PROD: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
         run: |
           echo "Ejecutando ingesta en entorno: $TARGET_ENV"
           python scripts/sync_bronze.py
->>>>>>> dev
