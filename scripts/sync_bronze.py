@@ -1,26 +1,4 @@
 import os
-<<<<<<< HEAD
-import sys
-from datetime import date, datetime, timedelta
-import boto3
-from botocore.exceptions import ClientError
-import duckdb
-
-def run_sync():
-    # 1. Variables de entorno inyectadas por el entorno de ejecución
-    token = os.environ.get("MOTHERDUCK_TOKEN")
-    database = os.environ.get("MOTHERDUCK_DB", "mi_db_prod")
-    bucket = os.environ.get("S3_BUCKET", "mi-bucket-raw")
-    aws_region = os.environ.get("AWS_REGION", "eu-west-1")
-    aws_key = os.environ.get("AWS_ACCESS_KEY_ID")
-    aws_secret = os.environ.get("AWS_SECRET_ACCESS_KEY")
-
-    if not all([token, aws_key, aws_secret]):
-        print("[ERROR] Faltan variables de entorno obligatorias.")
-        sys.exit(1)
-
-    table_name = "t_scrap_offers_b"
-=======
 import re
 import sys
 from datetime import date, datetime, timedelta
@@ -37,9 +15,31 @@ def list_s3_keys_under_prefix(s3_client, bucket, prefix):
     return keys
 
 def run_sync():
-    # 1. Configuración de variables de entorno
-    table_name = "t_scraps_offers_b"
->>>>>>> dev
+    # 1. Detección de entorno (dev por defecto para evitar sobreescrituras accidentales en prod)
+    env = os.environ.get("ENV", "dev").strip().lower()
+    
+    if env == "prod":
+        bucket = "pipeline-scrapping-linkedin"
+        token = os.environ.get("MOTHERDUCK_TOKEN_PROD")
+        aws_key = os.environ.get("AWS_ACCESS_KEY_ID_PROD")
+        aws_secret = os.environ.get("AWS_SECRET_ACCESS_KEY_PROD")
+    else:
+        env = "dev"
+        bucket = "pipeline-scrapping-linkedin-dev"
+        token = os.environ.get("MOTHERDUCK_TOKEN_DEV")
+        aws_key = os.environ.get("AWS_ACCESS_KEY_ID_DEV")
+        aws_secret = os.environ.get("AWS_SECRET_ACCESS_KEY_DEV")
+
+    database = os.environ.get("MOTHERDUCK_DB")
+    aws_region = os.environ.get("AWS_REGION", "eu-west-1")
+
+    print(f"[*] Ejecutando en entorno: {env.upper()} | Bucket objetivo: {bucket}")
+
+    if not all([token, aws_key, aws_secret, database]):
+        print(f"[ERROR] Faltan secretos obligatorios para el entorno '{env}'.")
+        sys.exit(1)
+
+    table_name = "t_scrap_offers_b"
     full_table_path = f"bronze.{table_name}"
 
     # 2. Conexión y configuración de MotherDuck / S3
@@ -50,17 +50,9 @@ def run_sync():
         SET s3_access_key_id = '{aws_key}';
         SET s3_secret_access_key = '{aws_secret}';
     """)
-<<<<<<< HEAD
-
-    # Garantizar esquema bronze
-    con.execute("CREATE SCHEMA IF NOT EXISTS bronze;")
-
-    # 3. Determinar la última fecha procesada de forma segura
-=======
     con.execute("CREATE SCHEMA IF NOT EXISTS bronze;")
 
     # 3. Determinar la última fecha procesada
->>>>>>> dev
     check_table = con.execute(f"""
         SELECT COUNT(*) FROM information_schema.tables 
         WHERE table_schema = 'bronze' AND table_name = '{table_name}';
@@ -68,16 +60,6 @@ def run_sync():
 
     if check_table == 0:
         last_date = date(2026, 1, 1)
-<<<<<<< HEAD
-    else:
-        raw_last = con.execute(f"SELECT MAX(extraction_date) FROM {full_table_path};").fetchone()[0]
-        if raw_last is None:
-            last_date = date(2026, 1, 1)
-        elif isinstance(raw_last, str):
-            last_date = datetime.strptime(raw_last, "%Y-%m-%d").date()
-        else:
-            last_date = raw_last
-=======
         already_loaded_files = set()
     else:
         raw_last = con.execute(f"SELECT MAX(extraction_date) FROM {full_table_path};").fetchone()[0]
@@ -87,20 +69,13 @@ def run_sync():
         # Control estricto de idempotencia por ruta completa para evitar duplicados
         loaded_res = con.execute(f"SELECT DISTINCT source_file FROM {full_table_path};").fetchall()
         already_loaded_files = {row[0] for row in loaded_res if row[0]}
->>>>>>> dev
 
     start_date = last_date + timedelta(days=1)
     end_date = date.today()
 
-<<<<<<< HEAD
-    print(f"Buscando particiones pendientes para {full_table_path} entre {start_date} y {end_date}...")
-
-    # 4. Comprobar archivos existentes en S3 con HEAD Object
-=======
     print(f"Buscando particiones pendientes para {full_table_path} desde {start_date} hasta {end_date}...")
 
     # 4. Exploración dinámica en S3
->>>>>>> dev
     s3_client = boto3.client(
         "s3",
         region_name=aws_region,
@@ -108,24 +83,6 @@ def run_sync():
         aws_secret_access_key=aws_secret
     )
 
-<<<<<<< HEAD
-    files_to_load = []
-    curr = start_date
-    while curr <= end_date:
-        filename = f"datos_{curr.strftime('%Y%m%d')}.csv"
-        key = f"raw/{filename}"
-        
-        try:
-            s3_client.head_object(Bucket=bucket, Key=key)
-            files_to_load.append(f"s3://{bucket}/{key}")
-            print(f"  [+] Archivo localizado: {key}")
-        except ClientError:
-            pass  # Día sin scraping o archivo no generado
-            
-        curr += timedelta(days=1)
-
-    # 5. Ingesta por lote directo en MotherDuck
-=======
     # Identificar años a revisar
     target_years = range(start_date.year, end_date.year + 1)
     files_to_load = []
@@ -163,17 +120,11 @@ def run_sync():
                     print(f"  [+] Archivo diario localizado: {key}")
 
     # 5. Ingesta directa en MotherDuck
->>>>>>> dev
     if not files_to_load:
         print("No se encontraron particiones pendientes de carga.")
         con.close()
         return
 
-<<<<<<< HEAD
-    print(f"Cargando {len(files_to_load)} lote(s) en {full_table_path}...")
-
-    # Operación DDL/DML parametrizada pasando la lista en $1
-=======
     print(f"Cargando {len(files_to_load)} archivo(s) en {full_table_path}...")
 
     # Expresión condicional SQL para derivar extraction_date según el tipo de archivo
@@ -193,42 +144,24 @@ def run_sync():
         CURRENT_TIMESTAMP AS ingested_at
     """
 
->>>>>>> dev
     if check_table == 0:
         con.execute(f"""
             CREATE TABLE {full_table_path} AS
             SELECT 
                 *,
-<<<<<<< HEAD
-                strptime(regexp_extract(filename, '(\\d{{8}})', 1), '%Y%m%d')::DATE AS extraction_date,
-                filename AS source_file,
-                CURRENT_TIMESTAMP AS ingested_at
-            FROM read_csv($1, filename = true, auto_detect = true);
-=======
                 {date_parsing_sql}
             FROM read_csv($1, filename = true, auto_detect = true, union_by_name = true);
->>>>>>> dev
         """, [files_to_load])
     else:
         con.execute(f"""
             INSERT INTO {full_table_path}
             SELECT 
                 *,
-<<<<<<< HEAD
-                strptime(regexp_extract(filename, '(\\d{{8}})', 1), '%Y%m%d')::DATE AS extraction_date,
-                filename AS source_file,
-                CURRENT_TIMESTAMP AS ingested_at
-            FROM read_csv($1, filename = true, auto_detect = true);
-        """, [files_to_load])
-
-    # 6. Comprobación final
-=======
                 {date_parsing_sql}
             FROM read_csv($1, filename = true, auto_detect = true, union_by_name = true);
         """, [files_to_load])
 
     # 6. Verificación final
->>>>>>> dev
     total_filas = con.execute(f"SELECT COUNT(*) FROM {full_table_path};").fetchone()[0]
     print(f"Carga finalizada con éxito. Filas acumuladas en {full_table_path}: {total_filas}")
     con.close()
