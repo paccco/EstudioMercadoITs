@@ -3,6 +3,7 @@ import re
 import sys
 from datetime import date, datetime, timedelta
 import boto3
+from botocore.exceptions import ClientError
 import duckdb
 
 def list_s3_keys_under_prefix(s3_client, bucket, prefix):
