@@ -45,11 +45,15 @@ def run_sync():
 
     # 2. Conexión y configuración de MotherDuck / S3
     con = duckdb.connect(f"md:{motherduck_db}?motherduck_token={token}")
+    # Nuevo (robusto con MotherDuck y S3):
     con.execute("INSTALL httpfs; LOAD httpfs;")
     con.execute(f"""
-        SET s3_region = '{aws_region}';
-        SET s3_access_key_id = '{aws_key}';
-        SET s3_secret_access_key = '{aws_secret}';
+        CREATE OR REPLACE SECRET s3_creds (
+            TYPE S3,
+            KEY_ID '{aws_key}',
+            SECRET '{aws_secret}',
+            REGION '{aws_region}'
+        );
     """)
     con.execute(f"CREATE SCHEMA IF NOT EXISTS {motherduck_db}.bronze;")
 
