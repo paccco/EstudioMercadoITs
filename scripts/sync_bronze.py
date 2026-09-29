@@ -19,20 +19,18 @@ def run_sync():
     # 1. Detección de entorno (dev por defecto para evitar sobreescrituras accidentales en prod)
     env = os.environ.get("ENV", "dev").strip().lower()
     
-    if env == "prod":
-        bucket = "pipeline-scrapping-linkedin"
-        token = os.environ.get("MOTHERDUCK_TOKEN_PROD")
-        aws_key = os.environ.get("AWS_ACCESS_KEY_ID_PROD")
-        aws_secret = os.environ.get("AWS_SECRET_ACCESS_KEY_PROD")
-    else:
-        env = "dev"
-        bucket = "pipeline-scrapping-linkedin-dev"
-        token = os.environ.get("MOTHERDUCK_TOKEN_DEV")
-        aws_key = os.environ.get("AWS_ACCESS_KEY_ID_DEV")
-        aws_secret = os.environ.get("AWS_SECRET_ACCESS_KEY_DEV")
+    # 1. Variables inyectadas directamente por GitHub Actions
+    env = os.environ.get("ENV", "dev").strip().lower()
+    bucket = os.environ.get("S3_BUCKET")
+    token = os.environ.get("MOTHERDUCK_TOKEN")
+    aws_key = os.environ.get("AWS_ACCESS_KEY_ID")
+    aws_secret = os.environ.get("AWS_SECRET_ACCESS_KEY")
+    database = os.environ.get("MOTHERDUCK_DB")
+    aws_region = os.environ.get("AWS_REGION")
+    aws_secret = os.environ.get("AWS_SECRET_ACCESS_KEY_DEV")
 
     database = os.environ.get("MOTHERDUCK_DB")
-    aws_region = os.environ.get("AWS_REGION", "eu-west-1")
+    aws_region = os.environ.get("AWS_REGION")
 
     print(f"[*] Ejecutando en entorno: {env.upper()} | Bucket objetivo: {bucket}")
 
