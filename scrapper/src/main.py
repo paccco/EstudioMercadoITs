@@ -33,17 +33,10 @@ def configurar_rutas() -> Tuple[Path, str]:
 
     # Localizado en: scrapper/scraps/YYYY-MM-DD/
     directorio_scrapper = Path(__file__).resolve().parent.parent
-<<<<<<< HEAD
-    ruta_carpeta = directorio_scrapper / "scraps" / fecha_hoy
-    ruta_carpeta.mkdir(parents=True, exist_ok=True)
-
-    nombre_archivo = f"ofertas_it_{timestamp}.csv"
-=======
     ruta_carpeta = directorio_scrapper / "scraps"
     ruta_carpeta.mkdir(parents=True, exist_ok=True)
 
     nombre_archivo = f"ofertas_it_{fecha_hoy}_at_{timestamp}.csv"
->>>>>>> dev
     ruta_final = ruta_carpeta / nombre_archivo
     return ruta_final, nombre_archivo
 
