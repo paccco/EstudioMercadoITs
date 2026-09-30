@@ -92,9 +92,10 @@ jobs:
         if: github.ref == 'refs/heads/dev'
         run: |
           docker run --rm \
-            -e AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_id) \
-            -e AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key) \
-            -e AWS_DEFAULT_REGION=$(aws configure get region || echo "eu-west-1") \
+            -e APP_ENV=dev \
+            -e AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_id --profile dev) \
+            -e AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key --profile dev) \
+            -e AWS_DEFAULT_REGION=$(aws configure get region --profile dev) \
             -v /home/pacc/scraps:/app/scraps \
             ${{ env.REGISTRY }}/$IMAGE_NAME:latest
 
