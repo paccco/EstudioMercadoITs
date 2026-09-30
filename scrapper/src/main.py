@@ -5,6 +5,7 @@ import gc
 import logging
 import os
 import random
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -135,14 +136,14 @@ def main() -> None:
         delay_range = (7, 12)
 
     # Obtener entorno (por defecto 'prod' si no se especifica)
-    APP_ENV = os.getenv("APP_ENV", "dev").lower()
-    BUCKET_BASE = "pipeline-scrapping-linkedin"  # Tu nombre base
+    APP_ENV = os.getenv("APP_ENV", "prod").lower()
+    BUCKET_BASE = "pipeline-scrapping-linkedin"
     BUCKET_NAME = f"{BUCKET_BASE}-dev" if APP_ENV == "dev" else BUCKET_BASE
 
-
+    # Comprobar siempre la conexión a S3 antes de scrapear
     if not verificar_conexion_s3(BUCKET_NAME):
-        logger.error("No se pudo establecer conexión con S3. Abortando ejecución.")
-        raise Exception("Conexión S3 fallida. Verifica credenciales y existencia del bucket.")
+        logger.error("Abortando scraping: no hay conexión o permisos con el bucket S3.")
+        sys.exit(1)
 
     # 1. Extracción de ofertas
     for is_remote, loc in search_tasks:
