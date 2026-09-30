@@ -136,6 +136,7 @@ def main() -> None:
 
     # Obtener entorno (por defecto 'prod' si no se especifica)
         APP_ENV = os.getenv("APP_ENV", "prod").lower()
+        print("hola")
         BUCKET_BASE = "pipeline-scrapping-linkedin"  # Tu nombre base
         BUCKET_NAME = f"{BUCKET_BASE}-dev" if APP_ENV == "dev" else BUCKET_BASE
 
