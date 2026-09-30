@@ -137,11 +137,7 @@ def main() -> None:
     # Obtener entorno (por defecto 'prod' si no se especifica)
         APP_ENV = os.getenv("APP_ENV", "prod").lower()
         BUCKET_BASE = "pipeline-scrapping-linkedin"  # Tu nombre base
-    
-        if APP_ENV == "dev":
-            BUCKET_NAME = f"{BUCKET_BASE}-dev"
-        else:
-            BUCKET_NAME = BUCKET_BASE    
+        BUCKET_NAME = f"{BUCKET_BASE}-dev" if APP_ENV == "dev" else BUCKET_BASE
 
     if not verificar_conexion_s3(BUCKET_NAME):
         logger.error("No se pudo establecer conexión con S3. Abortando ejecución.")
