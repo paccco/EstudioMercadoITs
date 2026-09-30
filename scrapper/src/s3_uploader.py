@@ -9,7 +9,7 @@ def verificar_conexion_s3(bucket_name: str) -> bool:
     """Verifica credenciales de AWS y acceso/existencia del bucket antes de scrapear."""
     try:
         s3_client = boto3.client("s3")
-        s3_client.head_bucket(Bucket=bucket_name)
+        s3_client.list_objects_v2(Bucket=bucket_name, Prefix="raw/", MaxKeys=1)
         logger.info("Conexión con S3 validada exitosamente en el bucket '%s'.", bucket_name)
         return True
     except ClientError as e:
