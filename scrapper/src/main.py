@@ -166,8 +166,11 @@ def main() -> None:
     else:
         BUCKET_NAME = BUCKET_BASE    
 
-    subir_a_s3(ruta_final, BUCKET_NAME, clave_s3)
-    logger.info("Ejecución finalizada con éxito en el entorno %s.", APP_ENV)
+    if subir_a_s3(ruta_final, BUCKET_NAME, clave_s3):
+        logger.info("Archivo '%s' subido a S3 con clave '%s'.", ruta_final.name, clave_s3)
+    else:
+        logger.error("Fallo al subir '%s' a S3.", ruta_final.name)
+        return
 
 
 if __name__ == "__main__":
