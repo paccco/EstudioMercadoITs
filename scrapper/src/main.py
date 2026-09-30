@@ -135,8 +135,7 @@ def main() -> None:
         delay_range = (7, 12)
 
     # Obtener entorno (por defecto 'prod' si no se especifica)
-        APP_ENV = os.getenv("APP_ENV", "prod").lower()
-        print("hola")
+        APP_ENV = os.getenv("APP_ENV", "dev").lower()
         BUCKET_BASE = "pipeline-scrapping-linkedin"  # Tu nombre base
         BUCKET_NAME = f"{BUCKET_BASE}-dev" if APP_ENV == "dev" else BUCKET_BASE
 
