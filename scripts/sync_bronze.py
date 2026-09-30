@@ -43,6 +43,7 @@ def run_sync():
     # Ruta explícita: db.schema.table
     full_table_path = f"{motherduck_db}.bronze.{table_name}"
 
+
     # 2. Conexión y configuración de MotherDuck / S3
     con = duckdb.connect(f"md:{motherduck_db}?motherduck_token={token}")
     # Nuevo (robusto con MotherDuck y S3):
