@@ -167,7 +167,7 @@ def main() -> None:
         BUCKET_NAME = BUCKET_BASE    
 
     subir_a_s3(ruta_final, BUCKET_NAME, clave_s3)
-    logger.info("Ejecución finalizada con éxito.")
+    logger.info("Ejecución finalizada con éxito en el entorno %s.", APP_ENV)
 
 
 if __name__ == "__main__":
