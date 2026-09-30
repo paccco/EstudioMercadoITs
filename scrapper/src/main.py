@@ -140,10 +140,9 @@ def main() -> None:
     BUCKET_NAME = f"{BUCKET_BASE}-dev" if APP_ENV == "dev" else BUCKET_BASE
 
 
-
     if not verificar_conexion_s3(BUCKET_NAME):
         logger.error("No se pudo establecer conexión con S3. Abortando ejecución.")
-        return
+        raise Exception("Conexión S3 fallida. Verifica credenciales y existencia del bucket.")
 
     # 1. Extracción de ofertas
     for is_remote, loc in search_tasks:
@@ -163,7 +162,7 @@ def main() -> None:
 
     if not ruta_final.exists():
         logger.warning("No se generó ningún CSV para persistir en S3.")
-        return
+        raise Exception("No se generó ningún CSV para persistir en S3.")
 
     ahora = datetime.now()
     clave_s3 = f"raw/year={ahora.strftime('%Y')}/month={ahora.strftime('%m')}/{nombre_archivo}"
@@ -172,8 +171,7 @@ def main() -> None:
         logger.info("Archivo '%s' subido a S3 con clave '%s'.", ruta_final.name, clave_s3)
     else:
         logger.error("Fallo al subir '%s' a S3.", ruta_final.name)
-        return
-
+        raise Exception("Fallo al subir archivo a S3.")
 
 if __name__ == "__main__":
     main()
