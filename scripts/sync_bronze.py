@@ -1,183 +1,109 @@
 import os
-import re
 import sys
-from datetime import date, datetime, timedelta
-import boto3
 import duckdb
 
-def list_s3_keys_under_prefix(s3_client, bucket, prefix):
-    """Recupera todas las claves bajo un prefijo en S3 manejando paginación."""
-    keys = []
-    paginator = s3_client.get_paginator('list_objects_v2')
-    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
-        for obj in page.get('Contents', []):
-            keys.append(obj['Key'])
-    return keys
-
-def run_sync():
-    # 1. Variables inyectadas directamente por GitHub Actions
-    env = os.environ.get("ENV").strip().lower()
-    bucket = os.environ.get("S3_BUCKET")
+def debug_columns():
+    # 1. Recuperar variables de entorno
+    env = os.environ.get("ENV", "prod").strip().lower()
+    motherduck_db = os.environ.get("MOTHERDUCK_DB", f"db_{env}")
     token = os.environ.get("MOTHERDUCK_TOKEN")
+    bucket = os.environ.get("S3_BUCKET")
     aws_key = os.environ.get("AWS_ACCESS_KEY_ID")
     aws_secret = os.environ.get("AWS_SECRET_ACCESS_KEY")
-    aws_region = os.environ.get("AWS_REGION")
-    motherduck_db = os.environ.get("MOTHERDUCK_DB", f"db_{env}")
+    aws_region = os.environ.get("AWS_REGION", "eu-north-1")
 
-    print(f"[*] Ejecutando en entorno: {env.upper()}")
-    print(f"[*] Base de datos MotherDuck: {motherduck_db}")
-    print(f"[*] Bucket S3 objetivo: {bucket}")
-
-    required_vars = {
-        "S3_BUCKET": bucket,
-        "MOTHERDUCK_TOKEN": token,
-        "AWS_ACCESS_KEY_ID": aws_key,
-        "AWS_SECRET_ACCESS_KEY": aws_secret
-    }
-    missing = [k for k, v in required_vars.items() if not v]
-    if missing:
-        print(f"[ERROR] Faltan variables obligatorias: {', '.join(missing)}")
+    if not token:
+        print("[ERROR] Falta MOTHERDUCK_TOKEN.")
         sys.exit(1)
 
     table_name = "t_scrap_offers_b"
-    # Ruta explícita: db.schema.table
     full_table_path = f"{motherduck_db}.bronze.{table_name}"
 
-
-    # 2. Conexión y configuración de MotherDuck / S3
+    print(f"[*] Conectando a MotherDuck: {motherduck_db}")
     con = duckdb.connect(f"md:{motherduck_db}?motherduck_token={token}")
-    # Nuevo (robusto con MotherDuck y S3):
-    con.execute("INSTALL httpfs; LOAD httpfs;")
-    con.execute(f"""
-        CREATE OR REPLACE SECRET s3_creds (
-            TYPE S3,
-            KEY_ID '{aws_key}',
-            SECRET '{aws_secret}',
-            REGION '{aws_region}'
-        );
-    """)
-    con.execute(f"CREATE SCHEMA IF NOT EXISTS {motherduck_db}.bronze;")
 
-    # 3. Determinar la última fecha procesada
-    check_table = con.execute(f"""
-        SELECT COUNT(*) FROM information_schema.tables 
-        WHERE table_catalog = '{motherduck_db}' 
-          AND table_schema = 'bronze' 
-          AND table_name = '{table_name}';
-    """).fetchone()[0]
+    # Configurar acceso a S3 si hay credenciales disponibles
+    if aws_key and aws_secret:
+        con.execute("INSTALL httpfs; LOAD httpfs;")
+        con.execute(f"""
+            CREATE OR REPLACE SECRET s3_creds (
+                TYPE S3,
+                KEY_ID '{aws_key}',
+                SECRET '{aws_secret}',
+                REGION '{aws_region}'
+            );
+        """)
 
-    already_loaded_files = set()
-    if check_table == 0:
-        last_date = date(2026, 1, 1)
-        print(f"[*] Tabla {full_table_path} no existe. Se creará en la primera ingesta.")
-    else:
-        raw_last = con.execute(f"SELECT MAX(extraction_date) FROM {full_table_path};").fetchone()[0]
-        if isinstance(raw_last, date):
-            last_date = raw_last
-        elif isinstance(raw_last, str) and raw_last:
-            last_date = datetime.strptime(raw_last[:10], "%Y-%m-%d").date()
-        else:
-            last_date = date(2026, 1, 1)
-
-        # Control estricto de idempotencia por URI completa
-        loaded_res = con.execute(f"SELECT DISTINCT source_file FROM {full_table_path};").fetchall()
-        already_loaded_files = {row[0] for row in loaded_res if row[0]}
-
-    start_date = last_date + timedelta(days=1)
-    end_date = date.today()
-
-    print(f"[*] Ventana de búsqueda: desde {start_date} hasta {end_date}")
-
-    # 4. Exploración dinámica en S3
-    s3_client = boto3.client(
-        "s3",
-        region_name=aws_region,
-        aws_access_key_id=aws_key,
-        aws_secret_access_key=aws_secret
-    )
-
-    target_years = range(start_date.year, end_date.year + 1)
-    files_to_load = []
-
-    for yr in target_years:
-        prefix = f"raw/year={yr}/"
-        s3_keys = list_s3_keys_under_prefix(s3_client, bucket, prefix)
-
-        for key in s3_keys:
-            full_s3_uri = f"s3://{bucket}/{key}"
-            if full_s3_uri in already_loaded_files:
-                continue
-
-            # Caso 1: Archivo consolidado mensual (raw/year=YYYY/month_X.csv)
-            match_month = re.search(r"raw/year=(\d{4})/month_(\d+)\.csv$", key)
-            if match_month:
-                f_year, f_month = int(match_month.group(1)), int(match_month.group(2))
-                if f_month == 12:
-                    month_end_date = date(f_year + 1, 1, 1) - timedelta(days=1)
-                else:
-                    month_end_date = date(f_year, f_month + 1, 1) - timedelta(days=1)
-
-                if month_end_date >= start_date:
-                    files_to_load.append(full_s3_uri)
-                    print(f"  [+] Mes cerrado localizado: {key}")
-                continue
-
-            # Caso 2: Archivo diario (raw/year=YYYY/month=MM/ofertas_it_YYYY-MM-DD_at_*.csv)
-            match_daily = re.search(r"ofertas_it_(\d{4}-\d{2}-\d{2})_at_.*\.csv$", key)
-            if match_daily:
-                f_date = datetime.strptime(match_daily.group(1), "%Y-%m-%d").date()
-                if start_date <= f_date <= end_date:
-                    files_to_load.append(full_s3_uri)
-                    print(f"  [+] Archivo diario localizado: {key}")
-
-    # 5. Ingesta en MotherDuck
-    if not files_to_load:
-        print("[*] No se encontraron nuevas particiones pendientes de carga.")
+    # 2. Obtener columnas de la tabla existente en MotherDuck
+    try:
+        table_desc = con.execute(f"DESCRIBE {full_table_path};").fetchall()
+        table_cols = {row[0]: row[1] for row in table_desc}
+        print(f"[✓] Columnas detectadas en la tabla ({len(table_cols)}): {full_table_path}")
+    except Exception as e:
+        print(f"[ERROR] No se pudo leer la tabla destino: {e}")
         con.close()
-        return
+        sys.exit(1)
 
-    print(f"[*] Cargando {len(files_to_load)} archivo(s) en {full_table_path}...")
+    # 3. Determinar origen del archivo de prueba (S3 o local)
+    # Puedes pasar la ruta como argumento: python scripts/debug_schema_diff.py s3://bucket/path/file.csv
+    # O por defecto comprobará el último patrón en S3
+    if len(sys.argv) > 1:
+        target_csv = sys.argv[1]
+    else:
+        target_csv = f"s3://{bucket}/raw/year=2026/**/*.csv"
 
-    # Parser robusto para fechas de extracción y metadatos
-    date_parsing_sql = """
-        CASE 
-            WHEN regexp_matches(filename, 'ofertas_it_\\d{4}-\\d{2}-\\d{2}_at_') 
-                THEN strptime(regexp_extract(filename, '(\\d{4}-\\d{2}-\\d{2})', 1), '%Y-%m-%d')::DATE
-            WHEN regexp_matches(filename, 'month_\\d+\\.csv') 
-                THEN strptime(
-                    regexp_extract(filename, 'year=(\\d{4})', 1) || '-' || 
-                    lpad(regexp_extract(filename, 'month_(\\d+)\\.csv', 1), 2, '0') || '-01',
-                    '%Y-%m-%d'
-                )::DATE
-            ELSE CURRENT_DATE
-        END AS extraction_date,
-        filename AS source_file,
-        CURRENT_TIMESTAMP AS ingested_at
+    print(f"[*] Analizando esquema proyectado del CSV: {target_csv}")
+
+    # Misma proyección de metadatos que usa sync_bronze.py
+    query_csv_schema = f"""
+        DESCRIBE 
+        SELECT 
+            *,
+            CURRENT_DATE AS extraction_date,
+            filename AS source_file,
+            CURRENT_TIMESTAMP AS ingested_at
+        FROM read_csv('{target_csv}', filename = true, auto_detect = true, union_by_name = true)
+        LIMIT 1;
     """
 
-    if check_table == 0:
-        con.execute(f"""
-            CREATE TABLE {full_table_path} AS
-            SELECT 
-                *,
-                {date_parsing_sql}
-            FROM read_csv($1, filename = true, auto_detect = true, union_by_name = true);
-        """, [files_to_load])
-    else:
-        # Se filtra contra la tabla destino para evitar duplicar si un archivo se procesó parcialmente
-        con.execute(f"""
-            INSERT INTO {full_table_path}
-            SELECT 
-                src.*,
-                {date_parsing_sql}
-            FROM read_csv($1, filename = true, auto_detect = true, union_by_name = true) AS src
-            WHERE filename NOT IN (SELECT DISTINCT source_file FROM {full_table_path});
-        """, [files_to_load])
+    try:
+        csv_desc = con.execute(query_csv_schema).fetchall()
+        csv_cols = {row[0]: row[1] for row in csv_desc}
+        print(f"[✓] Columnas proyectadas por el CSV + metadatos ({len(csv_cols)})")
+    except Exception as e:
+        print(f"[ERROR] No se pudo leer el CSV: {e}")
+        con.close()
+        sys.exit(1)
 
-    # 6. Resumen de ejecución
-    total_filas = con.execute(f"SELECT COUNT(*) FROM {full_table_path};").fetchone()[0]
-    print(f"[✓] Carga completada con éxito. Total registros en {full_table_path}: {total_filas}")
+    # 4. Comparativa de conjuntos
+    set_table = set(table_cols.keys())
+    set_csv = set(csv_cols.keys())
+
+    extra_in_csv = set_csv - set_table
+    missing_in_csv = set_table - set_csv
+
+    print("\n" + "=" * 60)
+    print("RESULTADO DE LA COMPARACIÓN DE ESQUEMA")
+    print("=" * 60)
+    print(f"Total columnas en BD  : {len(table_cols)}")
+    print(f"Total columnas en CSV : {len(csv_cols)}")
+    print("-" * 60)
+
+    if not extra_in_csv and not missing_in_csv:
+        print("[✓] Ambos esquemas coinciden exactamente en nombres de columnas.")
+    else:
+        if extra_in_csv:
+            print(f"[!] COLUMNAS SOBRANTES EN EL CSV (No existen en la tabla de BD):")
+            for col in sorted(extra_in_csv):
+                print(f"    -> '{col}' (Tipo detectado: {csv_cols[col]})")
+
+        if missing_in_csv:
+            print(f"\n[!] COLUMNAS FALTANTES EN EL CSV (Existen en la BD pero no en el CSV):")
+            for col in sorted(missing_in_csv):
+                print(f"    -> '{col}' (Tipo esperado: {table_cols[col]})")
+
+    print("=" * 60)
     con.close()
 
 if __name__ == "__main__":
-    run_sync()
+    debug_columns()
