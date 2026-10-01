@@ -106,11 +106,5 @@ jobs:
           if [ -n "$DOWNLOADED_IMAGE_ID" ]; then
             docker rmi -f $DOWNLOADED_IMAGE_ID
           fi
-
-      # --- FLUJO RAMA MAIN: Mantener imagen en la Pi y limpiar huérfanas ---
-      - name: "[MAIN] Limpiar imágenes huérfanas obsoletas"
-        if: github.ref == 'refs/heads/main'
-        run: |
-          docker image prune -f
           
           
